@@ -1,3 +1,4 @@
+import { checkApiSecret } from "@/lib/auth";
 import {
   disambiguateBookAuthor,
   recommendBooksFromSongDigest,
@@ -18,6 +19,9 @@ type Mode = "book_to_songs" | "song_to_books";
 
 // POST /api/recommendations — no auth; deploy behind Vercel or add your own gate if exposing publicly.
 export async function POST(req: Request) {
+  const authError = checkApiSecret(req);
+  if (authError) return authError;
+
   let body: {
     mode?: Mode;
     bookTitle?: string;
