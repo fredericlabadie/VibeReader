@@ -316,11 +316,19 @@ async function fetchPlaylistDigest(id: string, token: string): Promise<MusicList
     } catch {
       /* ignore */
     }
+    if (plRes.status === 404) {
+      throw new Error(
+        `Could not open this playlist (HTTP 404).${spotDetail} ` +
+          "Spotify’s Web API often returns “not found” for Spotify-owned or algorithmic playlists (for example “This Is…”, charts, Discover Weekly) when used from a third-party app—even though the same link opens in the Spotify app. " +
+          "See: https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api " +
+          "Workarounds: paste a user-created playlist with similar tracks, an artist link, or use text mode. " +
+          "If this is your own playlist, make sure it is public (not secret); the API cannot see private lists.",
+      );
+    }
     throw new Error(
       `Could not open this playlist (HTTP ${plRes.status}).${spotDetail} ` +
-        "This tool only reads public playlists (Spotify’s API cannot see secret or friends-only lists). " +
-        "In the app: open the playlist → ⋯ → add it to your profile or set it to public, then try again. " +
-        "Links from Share are fine: open.spotify.com, play.spotify.com, spotify.link (short), or spotify:playlist:…",
+        "Check the link and that the playlist is available to third-party apps. " +
+        "Share links: open.spotify.com, play.spotify.com, spotify.link, or spotify:playlist:…",
     );
   }
   const plJson = await plRes.json() as { name?: string; tracks?: { total?: number } };

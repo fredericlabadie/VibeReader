@@ -1,6 +1,6 @@
 # VibeReader — Book ↔ Music
 
-Small **Next.js** app: turn a **book** into a **named playlist** of track ideas (Claude), or get **several book** suggestions from **music**—via a Spotify **track, album, artist, or public playlist** link (audio features where applicable), or a **text description** of a song, album, artist, or playlist.
+Small **Next.js** app: turn a **book** into a **named playlist** of track ideas (Claude), or get **several book** suggestions from **music**—via a Spotify **track, album, artist, or public user playlist** link (audio features where applicable), or a **text description** of a song, album, artist, or playlist. Spotify-owned editorial playlists are often unavailable to the Web API; use a user playlist, artist link, or text when that happens.
 
 **Repo:** [github.com/fredericlabadie/VibeReader](https://github.com/fredericlabadie/VibeReader)
 
@@ -38,7 +38,7 @@ Works on Vercel like any Next app: set the same env vars in the project settings
 
 **Music → books (several titles)**
 
-- `{ "mode": "music_to_book", "spotifyUrl" }` — Spotify **track**, **album**, **artist**, or **public playlist** link
+- `{ "mode": "music_to_book", "spotifyUrl" }` — Spotify **track**, **album**, **artist**, or **public user playlist** link (many Spotify-owned editorial playlists return 404 to the Web API; see [Spotify’s Nov 2024 Web API changes](https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api))
 - `{ "mode": "music_to_book", "musicKind": "song" | "album", "musicTitle", "musicArtist", "musicNotes?" }`
 - `{ "mode": "music_to_book", "musicKind": "artist", "musicArtist", "musicTitle?", "musicNotes?" }` — tries Spotify artist search when credentials exist; otherwise Claude-only
 - `{ "mode": "music_to_book", "musicKind": "playlist", "musicTitle", "musicArtist?", "musicNotes?" }` — playlist **name** in `musicTitle`; optional curator in `musicArtist`

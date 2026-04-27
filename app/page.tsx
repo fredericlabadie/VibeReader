@@ -257,7 +257,7 @@ export default function Home() {
                 <input
                   id={spotifyUrlId}
                   className="vr-input"
-                  placeholder="Track, album, artist page, or public playlist"
+                  placeholder="Track, album, artist, or playlist link"
                   value={spotifyUrl}
                   onChange={(e) => setSpotifyUrl(e.target.value)}
                   disabled={busy}
@@ -265,9 +265,10 @@ export default function Home() {
                   inputMode="url"
                 />
                 <span className="vr-hint">
-                  Use Share → Copy link from the app (open.spotify.com or spotify.link both work). The playlist must be
-                  public: open it → ⋯ → add to your profile or make it public—secret playlists cannot be read by this
-                  tool.
+                  Share → Copy link (open.spotify.com or spotify.link). User playlists must be public (⋯ → add to
+                  profile or public); private lists are hidden from the API. Spotify-owned editorial playlists (“This
+                  Is…”, many charts) often fail in third-party apps—use a user-made playlist, an artist link, or
+                  Describe in words.
                 </span>
               </div>
             ) : (
