@@ -265,7 +265,9 @@ export default function Home() {
                   inputMode="url"
                 />
                 <span className="vr-hint">
-                  Copy the link from Spotify&apos;s share menu. Playlists need to be public so we can read the track list.
+                  Use Share → Copy link from the app (open.spotify.com or spotify.link both work). The playlist must be
+                  public: open it → ⋯ → add to your profile or make it public—secret playlists cannot be read by this
+                  tool.
                 </span>
               </div>
             ) : (

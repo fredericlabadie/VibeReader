@@ -110,6 +110,43 @@ export function normalizeSpotifyPaste(input: string): string {
   if (/^spotify:(track|album|playlist|artist):/i.test(s)) return s;
   if (/^https?:\/\//i.test(s)) return s;
   if (/^(open\.|play\.)?spotify\.com\//i.test(s)) return `https://${s.replace(/^\/+/, "")}`;
+  if (/^(www\.)?spotify\.link\//i.test(s)) return `https://${s.replace(/^\/+/, "")}`;
+  return s;
+}
+
+/**
+ * Mobile “Copy link” often returns `https://spotify.link/...`, which redirects to `open.spotify.com/...`.
+ * The Web API parser only understands open/play.spotify.com (or spotify: URIs), so resolve short links first.
+ */
+export async function resolveSpotifyShareUrl(input: string): Promise<string> {
+  const s = normalizeSpotifyPaste(input);
+  if (!s) return s;
+  let host: string;
+  try {
+    host = new URL(s).hostname.toLowerCase();
+  } catch {
+    return s;
+  }
+  if (host !== "spotify.link" && host !== "www.spotify.link") {
+    return s;
+  }
+  try {
+    const res = await fetch(s, {
+      method: "GET",
+      redirect: "follow",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        Accept: "text/html,*/*",
+      },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (res.url && res.url !== s) {
+      return normalizeSpotifyPaste(res.url);
+    }
+  } catch {
+    /* timeout or blocked; fall through */
+  }
   return s;
 }
 
@@ -247,7 +284,19 @@ async function fetchPlaylistDigest(id: string, token: string): Promise<MusicList
 
   const plRes = await fetch(`https://api.spotify.com/v1/playlists/${id}`, { headers });
   if (!plRes.ok) {
-    throw new Error("Could not load playlist. Use a public playlist link.");
+    let spotDetail = "";
+    try {
+      const j = (await plRes.json()) as { error?: { message?: string } };
+      if (j?.error?.message) spotDetail = ` ${j.error.message}`;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(
+      `Could not open this playlist (HTTP ${plRes.status}).${spotDetail} ` +
+        "This tool only reads public playlists (Spotify’s API cannot see secret or friends-only lists). " +
+        "In the app: open the playlist → ⋯ → add it to your profile or set it to public, then try again. " +
+        "Links from Share are fine: open.spotify.com, play.spotify.com, spotify.link (short), or spotify:playlist:…",
+    );
   }
   const plJson = await plRes.json() as { name?: string; tracks?: { total?: number } };
   const playlistName = plJson?.name ?? "Playlist";
@@ -359,7 +408,8 @@ export async function fetchArtistDigestBySearchQuery(query: string): Promise<Mus
 }
 
 export async function fetchListeningDigestFromSpotifyUrl(url: string): Promise<MusicListeningDigest> {
-  const parsed = parseSpotifyResourceUrl(url);
+  const resolved = await resolveSpotifyShareUrl(url);
+  const parsed = parseSpotifyResourceUrl(resolved);
   if (!parsed) {
     throw new Error(
       "Could not read that Spotify link. Use the full browser URL (include https://) or a spotify:track:/album:/playlist:/artist: URI.",
