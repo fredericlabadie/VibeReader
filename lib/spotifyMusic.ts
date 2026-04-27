@@ -4,6 +4,10 @@ function env(name: string) {
   return process.env[name]?.trim() ?? "";
 }
 
+function spotifyMarket() {
+  return env("SPOTIFY_MARKET") || "US";
+}
+
 function hasSpotifyCreds() {
   return !!env("SPOTIFY_CLIENT_ID") && !!env("SPOTIFY_CLIENT_SECRET");
 }
@@ -80,26 +84,67 @@ function deriveMoodFromFeatures(input: {
   return { moodLabel, descriptors, guidance };
 }
 
-export type ParsedSpotifyMusic =
-  | { kind: "track"; id: string }
-  | { kind: "album"; id: string };
+export type ParsedSpotifyResource =
+  | { type: "track"; id: string }
+  | { type: "album"; id: string }
+  | { type: "playlist"; id: string }
+  | { type: "artist"; id: string };
 
-export function parseSpotifyMusicUrl(input: string): ParsedSpotifyMusic | null {
-  const raw = input.trim();
+/** Spotify resource id in URLs / URIs (base62-ish; allow common punctuation from copy/paste). */
+const SPOTIFY_ID = "([A-Za-z0-9._-]+)";
+
+/**
+ * Clean pasted Spotify links so `new URL()` works: many apps omit `https://`,
+ * or add invisible Unicode / smart quotes around the string.
+ */
+export function normalizeSpotifyPaste(input: string): string {
+  let s = input
+    .replace(/\uFEFF/g, "")
+    .replace(/[\u200B-\u200D]/g, "")
+    .trim();
+  s = s
+    .replace(/^[\s<([{“”‘’'"`]+/, "")
+    .replace(/[\s>)}\]'“”‘’'"`;]+$/, "")
+    .trim();
+  if (!s) return s;
+  if (/^spotify:(track|album|playlist|artist):/i.test(s)) return s;
+  if (/^https?:\/\//i.test(s)) return s;
+  if (/^(open\.|play\.)?spotify\.com\//i.test(s)) return `https://${s.replace(/^\/+/, "")}`;
+  return s;
+}
+
+export function parseSpotifyResourceUrl(input: string): ParsedSpotifyResource | null {
+  const raw = normalizeSpotifyPaste(input);
   if (!raw) return null;
 
-  const trackUri = raw.match(/^spotify:track:([a-zA-Z0-9]+)$/);
-  if (trackUri) return { kind: "track", id: trackUri[1] };
-  const albumUri = raw.match(/^spotify:album:([a-zA-Z0-9]+)$/);
-  if (albumUri) return { kind: "album", id: albumUri[1] };
+  const uris: Array<[RegExp, ParsedSpotifyResource["type"]]> = [
+    [new RegExp(`^spotify:track:${SPOTIFY_ID}$`, "i"), "track"],
+    [new RegExp(`^spotify:album:${SPOTIFY_ID}$`, "i"), "album"],
+    [new RegExp(`^spotify:playlist:${SPOTIFY_ID}$`, "i"), "playlist"],
+    [new RegExp(`^spotify:artist:${SPOTIFY_ID}$`, "i"), "artist"],
+  ];
+  for (const [re, type] of uris) {
+    const m = raw.match(re);
+    if (m) return { type, id: m[1] } as ParsedSpotifyResource;
+  }
 
   try {
     const url = new URL(raw);
-    if (!url.hostname.includes("spotify.com")) return null;
-    const trackPath = url.pathname.match(/\/track\/([a-zA-Z0-9]+)/);
-    if (trackPath) return { kind: "track", id: trackPath[1] };
-    const albumPath = url.pathname.match(/\/album\/([a-zA-Z0-9]+)/);
-    if (albumPath) return { kind: "album", id: albumPath[1] };
+    if (!url.hostname.toLowerCase().endsWith("spotify.com")) return null;
+    let path = url.pathname;
+    try {
+      path = decodeURIComponent(path);
+    } catch {
+      /* keep encoded pathname */
+    }
+    const track = path.match(new RegExp(`\\/track\\/${SPOTIFY_ID}(?:\\/|$)`));
+    if (track) return { type: "track", id: track[1] };
+    const album = path.match(new RegExp(`\\/album\\/${SPOTIFY_ID}(?:\\/|$)`));
+    if (album) return { type: "album", id: album[1] };
+    const playlist = path.match(new RegExp(`\\/playlist\\/${SPOTIFY_ID}(?:\\/|$)`));
+    if (playlist) return { type: "playlist", id: playlist[1] };
+    const artist = path.match(new RegExp(`\\/artist\\/${SPOTIFY_ID}(?:\\/|$)`));
+    if (artist) return { type: "artist", id: artist[1] };
     return null;
   } catch {
     return null;
@@ -115,11 +160,16 @@ export type AudioFeatureSnapshot = {
   tempo: number;
 };
 
+export type MusicListeningKind = "track" | "album" | "playlist" | "artist";
+
 export type MusicListeningDigest = {
-  kind: "track" | "album";
+  kind: MusicListeningKind;
   label: string;
   artistLine: string;
+  /** Total tracks when known (e.g. playlist size); otherwise same as analyzedTrackCount. */
   trackCount: number;
+  /** Tracks used to compute averaged audio features. */
+  analyzedTrackCount: number;
   avgFeatures: AudioFeatureSnapshot;
   mood: MusicMoodSummary;
   sampleTrackLines: string[];
@@ -180,14 +230,7 @@ function averageFeatures(rows: Array<Record<string, unknown> | null | undefined>
       instrumentalness: acc.instrumentalness + x.instrumentalness,
       tempo: acc.tempo + x.tempo,
     }),
-    {
-      valence: 0,
-      energy: 0,
-      danceability: 0,
-      acousticness: 0,
-      instrumentalness: 0,
-      tempo: 0,
-    },
+    { valence: 0, energy: 0, danceability: 0, acousticness: 0, instrumentalness: 0, tempo: 0 },
   );
   return {
     valence: sum.valence / n,
@@ -199,10 +242,128 @@ function averageFeatures(rows: Array<Record<string, unknown> | null | undefined>
   };
 }
 
-export async function fetchMusicListeningDigest(spotifyUrl: string): Promise<MusicListeningDigest> {
-  const parsed = parseSpotifyMusicUrl(spotifyUrl);
+async function fetchPlaylistDigest(id: string, token: string): Promise<MusicListeningDigest> {
+  const headers = { Authorization: `Bearer ${token}` };
+
+  const plRes = await fetch(`https://api.spotify.com/v1/playlists/${id}`, { headers });
+  if (!plRes.ok) {
+    throw new Error("Could not load playlist. Use a public playlist link.");
+  }
+  const plJson = await plRes.json() as { name?: string; tracks?: { total?: number } };
+  const playlistName = plJson?.name ?? "Playlist";
+  const total = plJson?.tracks?.total ?? 0;
+
+  const tracksRes = await fetch(`https://api.spotify.com/v1/playlists/${id}/tracks?limit=80`, { headers });
+  if (!tracksRes.ok) {
+    throw new Error("Could not read playlist tracks.");
+  }
+  const tracksPayload = await tracksRes.json() as {
+    items?: Array<{ track: { id?: string; name?: string; artists?: Array<{ name?: string }> } | null }>;
+  };
+  const items = tracksPayload.items ?? [];
+
+  const trackIds: string[] = [];
+  const sampleTrackLines: string[] = [];
+  for (const row of items) {
+    const t = row?.track;
+    if (!t?.id) continue;
+    trackIds.push(t.id);
+    const artists = Array.isArray(t.artists) ? t.artists.map((a) => a.name).filter(Boolean).join(", ") : "";
+    if (sampleTrackLines.length < 18) {
+      sampleTrackLines.push(artists ? `${artists} — ${t.name ?? "Unknown"}` : (t.name ?? "Unknown"));
+    }
+  }
+
+  if (!trackIds.length) {
+    throw new Error("No playable tracks found in this playlist.");
+  }
+
+  const features = await fetchAudioFeaturesForIds(token, trackIds);
+  const avgFeatures = averageFeatures(features);
+  const mood = deriveMoodFromFeatures(avgFeatures);
+
+  return {
+    kind: "playlist",
+    label: playlistName,
+    artistLine: "",
+    trackCount: total || trackIds.length,
+    analyzedTrackCount: trackIds.length,
+    avgFeatures,
+    mood,
+    sampleTrackLines,
+  };
+}
+
+async function fetchArtistDigestById(artistId: string, token: string): Promise<MusicListeningDigest> {
+  const headers = { Authorization: `Bearer ${token}` };
+  const ar = await fetch(`https://api.spotify.com/v1/artists/${artistId}`, { headers });
+  if (!ar.ok) {
+    throw new Error("Could not load that artist.");
+  }
+  const aj = await ar.json() as { name?: string };
+  const artistName = aj.name ?? "Artist";
+
+  const market = spotifyMarket();
+  const top = await fetch(
+    `https://api.spotify.com/v1/artists/${artistId}/top-tracks?market=${encodeURIComponent(market)}`,
+    { headers },
+  );
+  if (!top.ok) {
+    throw new Error("Could not load artist top tracks. Try another market via SPOTIFY_MARKET in .env.");
+  }
+  const tj = await top.json() as {
+    tracks?: Array<{ id?: string; name?: string; artists?: Array<{ name?: string }> }>;
+  };
+  const tracks = tj.tracks ?? [];
+  const ids = tracks.map((t) => t.id).filter((id): id is string => !!id).slice(0, 15);
+  const sampleTrackLines: string[] = [];
+  for (const t of tracks.slice(0, 12)) {
+    const an = Array.isArray(t.artists) ? t.artists.map((a) => a.name).filter(Boolean).join(", ") : "";
+    sampleTrackLines.push(an ? `${an} — ${t.name ?? "Track"}` : (t.name ?? "Track"));
+  }
+
+  if (!ids.length) {
+    throw new Error("No top tracks found for this artist in this market.");
+  }
+
+  const features = await fetchAudioFeaturesForIds(token, ids);
+  const avgFeatures = averageFeatures(features);
+  const mood = deriveMoodFromFeatures(avgFeatures);
+
+  return {
+    kind: "artist",
+    label: `${artistName} (Spotify top tracks)`,
+    artistLine: artistName,
+    trackCount: ids.length,
+    analyzedTrackCount: ids.length,
+    avgFeatures,
+    mood,
+    sampleTrackLines,
+  };
+}
+
+/** Resolve typed artist name to first Spotify search hit, then top-tracks digest. */
+export async function fetchArtistDigestBySearchQuery(query: string): Promise<MusicListeningDigest> {
+  if (!hasSpotifyCreds()) {
+    throw new Error("Spotify credentials missing. Set SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET.");
+  }
+  const token = await getSpotifyAppToken();
+  const headers = { Authorization: `Bearer ${token}` };
+  const q = encodeURIComponent(query.trim());
+  const sr = await fetch(`https://api.spotify.com/v1/search?q=${q}&type=artist&limit=5`, { headers });
+  if (!sr.ok) throw new Error("Spotify artist search failed.");
+  const sj = await sr.json() as { artists?: { items?: Array<{ id?: string }> } };
+  const first = sj.artists?.items?.[0]?.id;
+  if (!first) throw new Error(`No Spotify artist found for “${query.trim()}”.`);
+  return fetchArtistDigestById(first, token);
+}
+
+export async function fetchListeningDigestFromSpotifyUrl(url: string): Promise<MusicListeningDigest> {
+  const parsed = parseSpotifyResourceUrl(url);
   if (!parsed) {
-    throw new Error("Paste a Spotify track or album link (open.spotify.com or spotify: URI).");
+    throw new Error(
+      "Could not read that Spotify link. Use the full browser URL (include https://) or a spotify:track:/album:/playlist:/artist: URI.",
+    );
   }
 
   if (!hasSpotifyCreds()) {
@@ -212,17 +373,27 @@ export async function fetchMusicListeningDigest(spotifyUrl: string): Promise<Mus
   const token = await getSpotifyAppToken();
   const headers = { Authorization: `Bearer ${token}` };
 
-  if (parsed.kind === "track") {
+  if (parsed.type === "playlist") {
+    return fetchPlaylistDigest(parsed.id, token);
+  }
+
+  if (parsed.type === "artist") {
+    return fetchArtistDigestById(parsed.id, token);
+  }
+
+  if (parsed.type === "track") {
     const tr = await fetch(`https://api.spotify.com/v1/tracks/${parsed.id}`, { headers });
     if (!tr.ok) {
       throw new Error("Could not load that track. Check the link is valid and the release is on Spotify.");
     }
-    const tj = await tr.json() as {
+    const trackJson = await tr.json() as {
       name?: string;
       artists?: Array<{ name?: string }>;
     };
-    const name = tj.name ?? "Track";
-    const artistLine = Array.isArray(tj.artists) ? tj.artists.map((a) => a.name).filter(Boolean).join(", ") : "";
+    const name = trackJson.name ?? "Track";
+    const artistLine = Array.isArray(trackJson.artists)
+      ? trackJson.artists.map((a) => a.name).filter(Boolean).join(", ")
+      : "";
     const label = artistLine ? `${artistLine} — ${name}` : name;
 
     const features = await fetchAudioFeaturesForIds(token, [parsed.id]);
@@ -234,6 +405,7 @@ export async function fetchMusicListeningDigest(spotifyUrl: string): Promise<Mus
       label,
       artistLine,
       trackCount: 1,
+      analyzedTrackCount: 1,
       avgFeatures,
       mood,
       sampleTrackLines: [label],
@@ -244,14 +416,16 @@ export async function fetchMusicListeningDigest(spotifyUrl: string): Promise<Mus
   if (!al.ok) {
     throw new Error("Could not load that album. Check the link is valid and the release is on Spotify.");
   }
-  const aj = await al.json() as {
+  const albumJson = await al.json() as {
     name?: string;
     artists?: Array<{ name?: string }>;
     tracks?: { items?: Array<{ id?: string; name?: string; artists?: Array<{ name?: string }> }> };
   };
-  const albumName = aj.name ?? "Album";
-  const albumArtists = Array.isArray(aj.artists) ? aj.artists.map((a) => a.name).filter(Boolean).join(", ") : "";
-  const items = aj.tracks?.items ?? [];
+  const albumName = albumJson.name ?? "Album";
+  const albumArtists = Array.isArray(albumJson.artists)
+    ? albumJson.artists.map((a) => a.name).filter(Boolean).join(", ")
+    : "";
+  const items = albumJson.tracks?.items ?? [];
   const ids = items.map((x) => x.id).filter((id): id is string => !!id).slice(0, 30);
   const sampleTrackLines: string[] = [];
   for (const row of items.slice(0, 12)) {
@@ -269,6 +443,7 @@ export async function fetchMusicListeningDigest(spotifyUrl: string): Promise<Mus
     label,
     artistLine: albumArtists,
     trackCount: ids.length || items.length,
+    analyzedTrackCount: ids.length || items.length,
     avgFeatures,
     mood,
     sampleTrackLines,
