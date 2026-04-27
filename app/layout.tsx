@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "VibeReader — Book ↔ Music",
+  title: "VibeReader — Book ↔ Song",
   description:
-    "Playlist ideas from a book, or a stack of book ideas from a track, album, artist, or playlist—via Spotify or plain text.",
+    "Book → song ideas from a novel, or several book ideas from one song—via Spotify track link or plain text.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

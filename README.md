@@ -1,14 +1,19 @@
-# VibeReader — Book ↔ Music
+# VibeReader — Book ↔ Song
 
-Small **Next.js** app: turn a **book** into a **named playlist** of track ideas (Claude), or get **several book** suggestions from **music**—via a Spotify **track, album, artist, or public user playlist** link (audio features where applicable), or a **text description** of a song, album, artist, or playlist. Spotify-owned editorial playlists are often unavailable to the Web API; use a user playlist, artist link, or text when that happens.
+Small **Next.js** app with two **AI lookups** (Claude):
+
+1. **Book → songs** — From a book title (author optional), get a named list of **song** ideas (title + artist) that fit the read.
+2. **Song → books** — From **one song** (Spotify **track** link, or song title + artist in text), get **several** novel suggestions.
+
+If you omit the author on book → songs and several well-known books share the title, the API returns candidates and the UI asks you to pick an author before generating songs.
 
 **Repo:** [github.com/fredericlabadie/VibeReader](https://github.com/fredericlabadie/VibeReader)
 
 This project is **separate** from [Writers Room](https://github.com/fredericlabadie/writers-room). You can copy the same API keys into `.env.local` here:
 
 - `ANTHROPIC_API_KEY` (required)
-- `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` — for Spotify links and for **typed artist name** (Spotify search → top tracks → books). Optional if you only use text for song/album/playlist without Spotify.
-- `SPOTIFY_MARKET` (optional, default `US`) — ISO **3166-1 alpha-2** country code (two letters, e.g. `FR`) for artist top tracks; invalid values are ignored. Artist URLs try several markets, then **track search** (quoted `artist:` query + id filter), then **recent album tracks**, if top-tracks is blocked or empty—audio features may be neutral when Spotify withholds that endpoint for your app.
+- `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` — optional; required only for **Song → books** via Spotify **track** URL (audio summaries). Text-only song → books works without Spotify.
+- `SPOTIFY_MARKET` (optional, default `US`) — ISO **3166-1 alpha-2** country code for any Spotify calls that still use a market (rare in the song-only flow).
 
 Default dev port is **3001** so it can run next to Writers Room on `3000`.
 
@@ -25,23 +30,24 @@ npm run dev
 
 ## Deploy
 
-Works on Vercel like any Next app: set the same env vars in the project settings. The recommendations route sets `maxDuration` to **60** seconds for longer playlist generations.
+Works on Vercel like any Next app: set the same env vars in the project settings. The recommendations route sets `maxDuration` to **60** seconds.
 
 ## API
 
 `POST /api/recommendations` with JSON:
 
-**Book → playlist**
+**Book → songs**
 
-- `{ "mode": "book_to_music", "bookTitle", "bookAuthor", "bookNotes?" }`
-- Response `result`: `{ "playlistName", "rationale", "moodTags", "tracks": [{ "title", "artist", "whyItFits" }] }` (typically 10–16 tracks).
+- `{ "mode": "book_to_songs", "bookTitle", "bookNotes?" }` — author omitted → response may be disambiguation (see below).
+- `{ "mode": "book_to_songs", "bookTitle", "bookAuthor", "bookNotes?" }` — author known → song list directly.
+- Response **song list**: `{ "mode": "book_to_songs", "result": { "songListName", "rationale", "moodTags", "songs": [{ "title", "artist", "whyItFits" }] } }` (typically 10–16 songs).
+- Response **pick author** (when title alone matches several books): `{ "mode": "book_to_songs", "step": "pick_author", "candidates": [{ "title", "author", "note?" }] }` — resend with the chosen `bookTitle` and `bookAuthor` from one row.
 
-**Music → books (several titles)**
+**Song → books**
 
-- `{ "mode": "music_to_book", "spotifyUrl" }` — Spotify **track**, **album**, **artist**, or **public user playlist** link (many Spotify-owned editorial playlists return 404 to the Web API; see [Spotify’s Nov 2024 Web API changes](https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api))
-- `{ "mode": "music_to_book", "musicKind": "song" | "album", "musicTitle", "musicArtist", "musicNotes?" }`
-- `{ "mode": "music_to_book", "musicKind": "artist", "musicArtist", "musicTitle?", "musicNotes?" }` — tries Spotify artist search when credentials exist; otherwise Claude-only
-- `{ "mode": "music_to_book", "musicKind": "playlist", "musicTitle", "musicArtist?", "musicNotes?" }` — playlist **name** in `musicTitle`; optional curator in `musicArtist`
-- Response `result`: `{ "rationale", "books": [{ "title", "author", "whyItFits" }] }` (typically **at least six** books).
+- `{ "mode": "song_to_books", "spotifyUrl" }` — must resolve to a **track** only (not album, artist, or playlist).
+- `{ "mode": "song_to_books", "musicTitle", "musicArtist", "musicNotes?" }` — text description of one song.
+
+Response `result`: `{ "rationale", "books": [{ "title", "author", "whyItFits" }] }` (typically **at least six** books). With Spotify, the response may also include `digest` (listening summary used for prompting).
 
 There is **no authentication** on this route; if you expose the app publicly, consider adding your own protection (e.g. Vercel deployment protection or a shared secret header).

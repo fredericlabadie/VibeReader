@@ -20,20 +20,76 @@ function extractJsonObject<T>(text: string): T {
   return JSON.parse(raw.slice(start, end + 1)) as T;
 }
 
-export type BookToPlaylistTrack = { title: string; artist: string; whyItFits: string };
+export type BookSongRow = { title: string; artist: string; whyItFits: string };
 
-export type BookToPlaylistResult = {
-  playlistName: string;
+export type BookToSongsResult = {
+  songListName: string;
   rationale: string;
   moodTags: string[];
-  tracks: BookToPlaylistTrack[];
+  songs: BookSongRow[];
 };
 
-export async function recommendPlaylistFromBook(input: {
+export type BookAuthorCandidate = {
+  title: string;
+  author: string;
+  /** Optional disambiguator, e.g. year or subtitle */
+  note?: string;
+};
+
+/**
+ * When the reader gives a title without an author, list likely books so they can pick
+ * (or we auto-pick when there is exactly one candidate).
+ */
+export async function disambiguateBookAuthor(input: {
+  bookTitle: string;
+  bookNotes?: string;
+}): Promise<{ candidates: BookAuthorCandidate[] }> {
+  const anthropic = getClient();
+  const lines = [
+    `User's book title (author unknown): ${input.bookTitle.trim()}`,
+    input.bookNotes?.trim() ? `Extra hints: ${input.bookNotes.trim()}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const message = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 1200,
+    temperature: 0.35,
+    system: `You help disambiguate books. The user entered a title but not an author.
+
+Rules:
+- Output ONLY a single JSON object (no markdown outside the JSON).
+- Shape: {"candidates":[{"title":string,"author":string,"note":string}]}
+- "note" is optional (short: year, series, or one disambiguating phrase); omit or use "" if not needed.
+- List 1–8 distinct published books that plausibly match this title (same or very similar title, or clear match to hints).
+- If one edition is overwhelmingly the usual meaning, return exactly one candidate.
+- If several famous books share the title, return multiple so the user can choose.
+- Use canonical English title spellings and author names as commonly shelved.`,
+    messages: [{ role: "user", content: lines }],
+  });
+
+  const text = message.content[0]?.type === "text" ? message.content[0].text : "";
+  const parsed = extractJsonObject<{ candidates: BookAuthorCandidate[] }>(text);
+  if (!Array.isArray(parsed.candidates) || parsed.candidates.length < 1) {
+    throw new Error("Could not resolve that title to any books");
+  }
+  for (const c of parsed.candidates) {
+    if (!c?.title?.trim() || !c?.author?.trim()) {
+      throw new Error("Invalid book candidate entry");
+    }
+  }
+  if (parsed.candidates.length > 8) {
+    parsed.candidates = parsed.candidates.slice(0, 8);
+  }
+  return { candidates: parsed.candidates };
+}
+
+export async function recommendSongsFromBook(input: {
   bookTitle: string;
   bookAuthor: string;
   bookNotes?: string;
-}): Promise<BookToPlaylistResult> {
+}): Promise<BookToSongsResult> {
   const anthropic = getClient();
   const payload = [
     `Title: ${input.bookTitle}`,
@@ -44,59 +100,59 @@ export async function recommendPlaylistFromBook(input: {
     .join("\n");
 
   const shape =
-    '{"playlistName":string,"rationale":string,"moodTags":string[],"tracks":[{"title":string,"artist":string,"whyItFits":string}]}';
+    '{"songListName":string,"rationale":string,"moodTags":string[],"songs":[{"title":string,"artist":string,"whyItFits":string}]}';
 
   const message = await anthropic.messages.create({
     model: MODEL,
     max_tokens: 3200,
     temperature: 0.72,
-    system: `You are a music supervisor for readers. Given a book, propose a cohesive listening playlist (many tracks) that could soundtrack a read or capture the book's arc.
+    system: `You are a music supervisor for readers. Given a book, propose a cohesive list of **song** ideas (individual tracks, not playlists as objects) that could soundtrack a read or capture the book's arc.
 
 Rules:
 - Output ONLY a single JSON object (no markdown outside the JSON).
 - Shape: ${shape}
-- 10–16 tracks. Each must be a real recording that exists on Spotify (well-known artists preferred).
-- Match tone, era, geography, and emotional arc implied by the book; order tracks for a satisfying listen.
-- "whyItFits" is one short sentence per track.
-- playlistName: evocative, like a real playlist title (not the book title alone).
+- 10–16 songs. Each must be a real recording that exists on Spotify (well-known artists preferred).
+- Match tone, era, geography, and emotional arc implied by the book; order for a satisfying listen.
+- "whyItFits" is one short sentence per song.
+- songListName: evocative, like a mixtape title (not the book title alone).
 - moodTags: 3–6 short tags.`,
-    messages: [{ role: "user", content: `Build a playlist for this book:\n\n${payload}` }],
+    messages: [{ role: "user", content: `Build song suggestions for this book:\n\n${payload}` }],
   });
 
   const text = message.content[0]?.type === "text" ? message.content[0].text : "";
-  const parsed = extractJsonObject<BookToPlaylistResult>(text);
-  if (!parsed.playlistName?.trim() || !Array.isArray(parsed.tracks) || parsed.tracks.length < 8) {
-    throw new Error("Invalid playlist recommendation shape");
+  const parsed = extractJsonObject<BookToSongsResult>(text);
+  if (!parsed.songListName?.trim() || !Array.isArray(parsed.songs) || parsed.songs.length < 8) {
+    throw new Error("Invalid song list recommendation shape");
   }
-  for (const t of parsed.tracks) {
+  for (const t of parsed.songs) {
     if (!t?.title?.trim() || !t?.artist?.trim() || !t?.whyItFits?.trim()) {
-      throw new Error("Invalid playlist track entry");
+      throw new Error("Invalid song entry");
     }
   }
   return parsed;
 }
 
-export type MusicToBookItem = {
+export type SongToBookItem = {
   title: string;
   author: string;
   whyItFits: string;
 };
 
-export type MusicToBookResult = {
+export type SongToBooksResult = {
   rationale: string;
-  books: MusicToBookItem[];
+  books: SongToBookItem[];
 };
 
 function kindLabel(kind: MusicListeningKind): string {
   switch (kind) {
     case "track":
-      return "Track";
+      return "Song (track)";
     case "album":
       return "Album";
     case "playlist":
       return "Playlist";
     case "artist":
-      return "Artist (top tracks profile)";
+      return "Artist";
     default:
       return "Recording";
   }
@@ -112,7 +168,7 @@ function digestToPromptLines(digest: MusicListeningDigest): string {
       : digest.kind === "artist"
         ? [
             `${kindLabel(digest.kind)}: ${digest.label}`,
-            `Top tracks used for averaged audio: ${digest.analyzedTrackCount}.`,
+            `Tracks used for averaged audio: ${digest.analyzedTrackCount}.`,
           ]
         : [
             `${kindLabel(digest.kind)}: ${digest.label}`,
@@ -125,12 +181,12 @@ function digestToPromptLines(digest: MusicListeningDigest): string {
     `Descriptors: ${digest.mood.descriptors.join(", ")}`,
     `Audio (0–1 except tempo BPM): valence ${digest.avgFeatures.valence.toFixed(2)}, energy ${digest.avgFeatures.energy.toFixed(2)}, danceability ${digest.avgFeatures.danceability.toFixed(2)}, acousticness ${digest.avgFeatures.acousticness.toFixed(2)}, tempo ~${Math.round(digest.avgFeatures.tempo)}`,
     "",
-    digest.kind === "track" ? "Track:" : "Sample tracks:",
+    digest.kind === "track" ? "Song:" : "Sample tracks:",
     ...digest.sampleTrackLines.slice(0, 15).map((l) => `- ${l}`),
   ].join("\n");
 }
 
-export async function recommendBooksFromMusicDigest(digest: MusicListeningDigest): Promise<MusicToBookResult> {
+export async function recommendBooksFromSongDigest(digest: MusicListeningDigest): Promise<SongToBooksResult> {
   const anthropic = getClient();
   const digestText = digestToPromptLines(digest);
 
@@ -138,98 +194,58 @@ export async function recommendBooksFromMusicDigest(digest: MusicListeningDigest
     model: MODEL,
     max_tokens: 2200,
     temperature: 0.55,
-    system: `You are a librarian matching fiction to music. The reader wants several book ideas—not one winner.
+    system: `You are a librarian matching fiction to a **single song** (or a tight listening context derived from one song). The reader wants several book ideas—not one winner.
 
 Rules:
 - Output ONLY a single JSON object (no markdown outside the JSON).
 - Shape: {"rationale": string, "books": [{"title": string, "author": string, "whyItFits": string}]}
 - Recommend 6–10 published novels or story collections (at least six). Order is loose, not a strict ranking.
-- "whyItFits" ties the book to this listening context in one sentence (mood, theme, pacing, or era).`,
-    messages: [{ role: "user", content: `Recommend books that fit this listening profile:\n\n${digestText}` }],
+- "whyItFits" ties the book to this song's mood, theme, pacing, or era in one sentence.`,
+    messages: [{ role: "user", content: `Recommend books that fit this song / listening profile:\n\n${digestText}` }],
   });
 
   const text = message.content[0]?.type === "text" ? message.content[0].text : "";
-  const parsed = extractJsonObject<MusicToBookResult>(text);
+  const parsed = extractJsonObject<SongToBooksResult>(text);
   if (!Array.isArray(parsed.books) || parsed.books.length < 5) {
     throw new Error("Invalid book recommendation shape");
   }
   return parsed;
 }
 
-export type MusicTextKind = "song" | "album" | "artist" | "playlist";
-
-export async function recommendBooksFromMusicText(input: {
-  musicKind: MusicTextKind;
-  musicTitle: string;
-  musicArtist: string;
-  musicNotes?: string;
-}): Promise<MusicToBookResult> {
+export async function recommendBooksFromSongText(input: {
+  songTitle: string;
+  songArtist: string;
+  songNotes?: string;
+}): Promise<SongToBooksResult> {
   const anthropic = getClient();
-  const notes = input.musicNotes?.trim();
-
-  let block: string;
-  if (input.musicKind === "song") {
-    block = [
-      "The user described a song (no Spotify audio data).",
-      `Title: ${input.musicTitle.trim()}`,
-      `Artist: ${input.musicArtist.trim()}`,
-      notes ? `Notes: ${notes}` : "",
-      "",
-      "Infer mood, genre, and era from the title and artist.",
-    ]
-      .filter(Boolean)
-      .join("\n");
-  } else if (input.musicKind === "album") {
-    block = [
-      "The user described an album (no Spotify audio data).",
-      `Album: ${input.musicTitle.trim()}`,
-      `Artist: ${input.musicArtist.trim()}`,
-      notes ? `Notes: ${notes}` : "",
-      "",
-      "Infer overall sonic and emotional character from the names.",
-    ]
-      .filter(Boolean)
-      .join("\n");
-  } else if (input.musicKind === "artist") {
-    block = [
-      "The user named a musical artist only (no Spotify audio data).",
-      `Artist: ${input.musicArtist.trim()}`,
-      input.musicTitle.trim() ? `Extra context: ${input.musicTitle.trim()}` : "",
-      notes ? `Notes: ${notes}` : "",
-      "",
-      "Infer typical catalog vibe, era, and themes from the artist name and any notes.",
-    ]
-      .filter(Boolean)
-      .join("\n");
-  } else {
-    block = [
-      "The user described a playlist by name only (no track list or Spotify data).",
-      `Playlist name: ${input.musicTitle.trim()}`,
-      input.musicArtist.trim() ? `Curator / context: ${input.musicArtist.trim()}` : "",
-      notes ? `Mood or genre hints: ${notes}` : "",
-      "",
-      "Infer what books might match a reader who loves this kind of playlist.",
-    ]
-      .filter(Boolean)
-      .join("\n");
-  }
+  const notes = input.songNotes?.trim();
+  const block = [
+    "The user described one song (no Spotify audio data).",
+    `Title: ${input.songTitle.trim()}`,
+    `Artist: ${input.songArtist.trim()}`,
+    notes ? `Notes: ${notes}` : "",
+    "",
+    "Infer mood, genre, and era from the title and artist.",
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   const message = await anthropic.messages.create({
     model: MODEL,
     max_tokens: 2200,
     temperature: 0.55,
-    system: `You are a librarian matching fiction to how someone listens. Offer a small stack of reads—not a single pick.
+    system: `You are a librarian matching fiction to how someone listens. The reader named **one song** and wants several book ideas—not a single pick.
 
 Rules:
 - Output ONLY a single JSON object (no markdown outside the JSON).
 - Shape: {"rationale": string, "books": [{"title": string, "author": string, "whyItFits": string}]}
 - Recommend 6–10 published novels or story collections (at least six). Order is suggestive, not a strict ranking.
-- "whyItFits" is one sentence linking the book to the music context.`,
+- "whyItFits" is one sentence linking the book to this song in plain language.`,
     messages: [{ role: "user", content: block }],
   });
 
   const text = message.content[0]?.type === "text" ? message.content[0].text : "";
-  const parsed = extractJsonObject<MusicToBookResult>(text);
+  const parsed = extractJsonObject<SongToBooksResult>(text);
   if (!Array.isArray(parsed.books) || parsed.books.length < 5) {
     throw new Error("Invalid book recommendation shape");
   }

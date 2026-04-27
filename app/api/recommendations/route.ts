@@ -1,23 +1,20 @@
 import {
-  recommendBooksFromMusicDigest,
-  recommendBooksFromMusicText,
-  recommendPlaylistFromBook,
+  disambiguateBookAuthor,
+  recommendBooksFromSongDigest,
+  recommendBooksFromSongText,
+  recommendSongsFromBook,
 } from "@/lib/bookPlaylist";
-import type { MusicTextKind } from "@/lib/bookPlaylist";
 import {
-  fetchArtistDigestBySearchQuery,
   fetchListeningDigestFromSpotifyUrl,
   normalizeSpotifyPaste,
+  parseSpotifyResourceUrl,
+  resolveSpotifyShareUrl,
 } from "@/lib/spotifyMusic";
 import { NextResponse } from "next/server";
 
 export const maxDuration = 60;
 
-type Mode = "book_to_music" | "music_to_book";
-
-function isMusicTextKind(x: unknown): x is MusicTextKind {
-  return x === "song" || x === "album" || x === "artist" || x === "playlist";
-}
+type Mode = "book_to_songs" | "song_to_books";
 
 // POST /api/recommendations — no auth; deploy behind Vercel or add your own gate if exposing publicly.
 export async function POST(req: Request) {
@@ -27,7 +24,6 @@ export async function POST(req: Request) {
     bookAuthor?: string;
     bookNotes?: string;
     spotifyUrl?: string;
-    musicKind?: string;
     musicTitle?: string;
     musicArtist?: string;
     musicNotes?: string;
@@ -39,94 +35,79 @@ export async function POST(req: Request) {
   }
 
   const mode = body.mode;
-  if (mode !== "book_to_music" && mode !== "music_to_book") {
-    return NextResponse.json({ error: "mode must be book_to_music or music_to_book" }, { status: 400 });
+  if (mode !== "book_to_songs" && mode !== "song_to_books") {
+    return NextResponse.json(
+      { error: 'mode must be "book_to_songs" or "song_to_books"' },
+      { status: 400 },
+    );
   }
 
   try {
-    if (mode === "book_to_music") {
+    if (mode === "book_to_songs") {
       const bookTitle = body.bookTitle?.trim() ?? "";
       const bookAuthor = body.bookAuthor?.trim() ?? "";
-      if (!bookTitle || !bookAuthor) {
-        return NextResponse.json({ error: "bookTitle and bookAuthor are required" }, { status: 400 });
+      const bookNotes = body.bookNotes?.trim();
+
+      if (!bookTitle) {
+        return NextResponse.json({ error: "bookTitle is required" }, { status: 400 });
       }
-      const result = await recommendPlaylistFromBook({
+
+      if (!bookAuthor) {
+        const { candidates } = await disambiguateBookAuthor({ bookTitle, bookNotes });
+        if (candidates.length === 1) {
+          const c = candidates[0];
+          const result = await recommendSongsFromBook({
+            bookTitle: c.title,
+            bookAuthor: c.author,
+            bookNotes,
+          });
+          return NextResponse.json({ mode, result });
+        }
+        return NextResponse.json({ mode, step: "pick_author", candidates });
+      }
+
+      const result = await recommendSongsFromBook({
         bookTitle,
         bookAuthor,
-        bookNotes: body.bookNotes?.trim(),
+        bookNotes,
       });
       return NextResponse.json({ mode, result });
     }
 
+    /* song_to_books */
     const url = normalizeSpotifyPaste(body.spotifyUrl ?? "");
     const title = body.musicTitle?.trim() ?? "";
     const artist = body.musicArtist?.trim() ?? "";
-    const musicNotes = body.musicNotes?.trim();
-    const musicKind = body.musicKind;
+    const songNotes = body.musicNotes?.trim();
 
     if (url) {
-      const digest = await fetchListeningDigestFromSpotifyUrl(url);
-      const result = await recommendBooksFromMusicDigest(digest);
-      return NextResponse.json({ mode, digest, result });
-    }
-
-    if (!isMusicTextKind(musicKind)) {
-      return NextResponse.json(
-        {
-          error:
-            "Paste a Spotify link in the Spotify field, or choose \"Describe in text\" and set type to song, album, artist, or playlist with the matching fields.",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (musicKind === "song" || musicKind === "album") {
-      if (!title || !artist) {
+      const resolved = await resolveSpotifyShareUrl(url);
+      const parsed = parseSpotifyResourceUrl(resolved);
+      if (!parsed || parsed.type !== "track") {
         return NextResponse.json(
-          { error: "For song or album (text mode), musicTitle and musicArtist are required" },
+          {
+            error:
+              "Song → books only accepts a Spotify **song** (track) link. Album, artist, and playlist links are not supported.",
+          },
           { status: 400 },
         );
       }
-      const result = await recommendBooksFromMusicText({
-        musicKind,
-        musicTitle: title,
-        musicArtist: artist,
-        musicNotes,
-      });
-      return NextResponse.json({ mode, result });
+      const digest = await fetchListeningDigestFromSpotifyUrl(resolved);
+      const result = await recommendBooksFromSongDigest(digest);
+      return NextResponse.json({ mode, digest, result });
     }
 
-    if (musicKind === "artist") {
-      if (!artist) {
-        return NextResponse.json({ error: "For artist (text mode), musicArtist is required" }, { status: 400 });
-      }
-      try {
-        const digest = await fetchArtistDigestBySearchQuery(artist);
-        const result = await recommendBooksFromMusicDigest(digest);
-        return NextResponse.json({ mode, digest, result });
-      } catch {
-        const result = await recommendBooksFromMusicText({
-          musicKind: "artist",
-          musicTitle: title,
-          musicArtist: artist,
-          musicNotes,
-        });
-        return NextResponse.json({ mode, result });
-      }
-    }
-
-    /* playlist text */
-    if (!title) {
+    if (!title || !artist) {
       return NextResponse.json(
-        { error: "For playlist (text mode), musicTitle should be the playlist name" },
+        { error: "For text mode, song title and artist are required (or paste a Spotify track link)." },
         { status: 400 },
       );
     }
-    const result = await recommendBooksFromMusicText({
-      musicKind: "playlist",
-      musicTitle: title,
-      musicArtist: artist,
-      musicNotes,
+
+    const result = await recommendBooksFromSongText({
+      songTitle: title,
+      songArtist: artist,
+      songNotes: songNotes,
     });
     return NextResponse.json({ mode, result });
   } catch (err) {
