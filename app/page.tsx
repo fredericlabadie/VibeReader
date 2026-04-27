@@ -75,7 +75,7 @@ export default function Home() {
 
   return (
     <main style={{ maxWidth: 720, margin: "0 auto", padding: "32px 20px 48px" }}>
-      <h1 style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "8px" }}>Book ↔ Playlist</h1>
+      <h1 style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "8px" }}>VibeReader</h1>
       <p style={{ color: "#9ca3af", marginBottom: "24px", fontSize: "0.95rem" }}>
         Standalone tool (not part of Writers Room). Reuse the same <code style={{ color: "#d1d5db" }}>ANTHROPIC_API_KEY</code> and Spotify app credentials as in Writers Room <code style={{ color: "#d1d5db" }}>.env.local</code>.
       </p>

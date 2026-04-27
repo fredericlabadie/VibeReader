@@ -1,8 +1,10 @@
-# Book ↔ Playlist tool
+# VibeReader — Book ↔ Playlist
 
 Small **Next.js** app: suggest **track ideas from a book** (Claude only), or **books from a public Spotify playlist** (Spotify Web API audio features + Claude).
 
-This repo is **separate** from [Writers Room](https://github.com/fredericlabadie/writers-room). You can copy the same API keys into `.env.local` here:
+**Repo:** [github.com/fredericlabadie/VibeReader](https://github.com/fredericlabadie/VibeReader)
+
+This project is **separate** from [Writers Room](https://github.com/fredericlabadie/writers-room). You can copy the same API keys into `.env.local` here:
 
 - `ANTHROPIC_API_KEY`
 - `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` (needed for playlist → books)

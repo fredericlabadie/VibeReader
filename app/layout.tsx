@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Book ↔ Playlist",
+  title: "VibeReader — Book ↔ Playlist",
   description: "Suggest a playlist from a book, or books from a public Spotify playlist",
 };
 
