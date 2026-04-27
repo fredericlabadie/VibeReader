@@ -8,7 +8,7 @@ This project is **separate** from [Writers Room](https://github.com/fredericlaba
 
 - `ANTHROPIC_API_KEY` (required)
 - `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` — for Spotify links and for **typed artist name** (Spotify search → top tracks → books). Optional if you only use text for song/album/playlist without Spotify.
-- `SPOTIFY_MARKET` (optional, default `US`) — market code for artist top tracks.
+- `SPOTIFY_MARKET` (optional, default `US`) — ISO **3166-1 alpha-2** country code (two letters, e.g. `FR`) for artist top tracks; invalid values are ignored. Artist URLs try several markets, then fall back to **track search** if top-tracks is blocked (HTTP 403) or empty—audio features may be neutral when Spotify withholds that endpoint for your app.
 
 Default dev port is **3001** so it can run next to Writers Room on `3000`.
 

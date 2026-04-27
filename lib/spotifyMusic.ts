@@ -4,8 +4,26 @@ function env(name: string) {
   return process.env[name]?.trim() ?? "";
 }
 
-function spotifyMarket() {
-  return env("SPOTIFY_MARKET") || "US";
+/** Spotify `market` must be ISO 3166-1 alpha-2; invalid values cause failed top-tracks requests. */
+function spotifyMarket(): string {
+  const raw = env("SPOTIFY_MARKET");
+  if (!raw) return "US";
+  const m = raw.toUpperCase();
+  if (m.length === 2 && /^[A-Z]{2}$/.test(m)) return m;
+  return "US";
+}
+
+const ARTIST_TOP_TRACKS_MARKET_FALLBACKS = [
+  "US", "GB", "FR", "DE", "CA", "AU", "ES", "IT", "NL", "SE", "BR", "MX", "JP", "IN",
+];
+
+function marketCandidatesForArtistTopTracks(): string[] {
+  const primary = spotifyMarket();
+  const out: string[] = [];
+  for (const m of [primary, ...ARTIST_TOP_TRACKS_MARKET_FALLBACKS]) {
+    if (!out.includes(m)) out.push(m);
+  }
+  return out;
 }
 
 function hasSpotifyCreds() {
@@ -376,6 +394,27 @@ async function fetchPlaylistDigest(id: string, token: string): Promise<MusicList
   };
 }
 
+type SpotifyTopTrackRow = { id?: string; name?: string; artists?: Array<{ name?: string }> };
+
+/** When top-tracks is blocked (HTTP 403 on many dev apps), catalog search still returns tracks. */
+async function fetchArtistTracksBySearch(artistName: string, token: string): Promise<SpotifyTopTrackRow[]> {
+  const headers = { Authorization: `Bearer ${token}` };
+  const q = encodeURIComponent(`artist:${artistName}`);
+  const sr = await fetch(`https://api.spotify.com/v1/search?q=${q}&type=track&limit=20`, { headers });
+  if (!sr.ok) return [];
+  const sj = (await sr.json()) as { tracks?: { items?: SpotifyTopTrackRow[] } };
+  const items = sj.tracks?.items ?? [];
+  const seen = new Set<string>();
+  const out: SpotifyTopTrackRow[] = [];
+  for (const t of items) {
+    if (!t?.id || seen.has(t.id)) continue;
+    seen.add(t.id);
+    out.push(t);
+    if (out.length >= 15) break;
+  }
+  return out;
+}
+
 async function fetchArtistDigestById(artistId: string, token: string): Promise<MusicListeningDigest> {
   const headers = { Authorization: `Bearer ${token}` };
   const ar = await fetch(`https://api.spotify.com/v1/artists/${artistId}`, { headers });
@@ -385,27 +424,59 @@ async function fetchArtistDigestById(artistId: string, token: string): Promise<M
   const aj = await ar.json() as { name?: string };
   const artistName = aj.name ?? "Artist";
 
-  const market = spotifyMarket();
-  const top = await fetch(
-    `https://api.spotify.com/v1/artists/${artistId}/top-tracks?market=${encodeURIComponent(market)}`,
-    { headers },
-  );
-  if (!top.ok) {
-    throw new Error("Could not load artist top tracks. Try another market via SPOTIFY_MARKET in .env.");
+  let tracks: SpotifyTopTrackRow[] = [];
+  let lastFail = "";
+  for (const market of marketCandidatesForArtistTopTracks()) {
+    const top = await fetch(
+      `https://api.spotify.com/v1/artists/${artistId}/top-tracks?market=${encodeURIComponent(market)}`,
+      { headers },
+    );
+    if (!top.ok) {
+      let detail = "";
+      try {
+        const j = (await top.json()) as { error?: { message?: string } };
+        if (j?.error?.message) detail = ` ${j.error.message}`;
+      } catch {
+        /* ignore */
+      }
+      lastFail = `HTTP ${top.status} (${market})${detail}`;
+      if (top.status === 403) break;
+      continue;
+    }
+    const tj = (await top.json()) as { tracks?: SpotifyTopTrackRow[] };
+    const list = (tj.tracks ?? []).filter((t) => !!t?.id);
+    if (list.length) {
+      tracks = list;
+      break;
+    }
+    lastFail = `no playable top tracks returned (${market})`;
   }
-  const tj = await top.json() as {
-    tracks?: Array<{ id?: string; name?: string; artists?: Array<{ name?: string }> }>;
-  };
-  const tracks = tj.tracks ?? [];
+
+  let usedSearchFallback = false;
+  if (!tracks.length) {
+    tracks = await fetchArtistTracksBySearch(artistName, token);
+    usedSearchFallback = true;
+  }
+
   const ids = tracks.map((t) => t.id).filter((id): id is string => !!id).slice(0, 15);
+  if (!ids.length) {
+    const policy403 =
+      lastFail.includes("403") &&
+      "Spotify blocked artist top-tracks for this app (HTTP 403). See https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api. ";
+    const other = lastFail && !lastFail.includes("403") ? `${lastFail} ` : "";
+    throw new Error(
+      "Could not load tracks for this artist. " +
+        (policy403 || "") +
+        other +
+        "Catalog track search returned nothing—try text mode or another artist. " +
+        "If your Spotify app has top-tracks access, set SPOTIFY_MARKET to a 2-letter country code (e.g. FR).",
+    );
+  }
+
   const sampleTrackLines: string[] = [];
   for (const t of tracks.slice(0, 12)) {
     const an = Array.isArray(t.artists) ? t.artists.map((a) => a.name).filter(Boolean).join(", ") : "";
     sampleTrackLines.push(an ? `${an} — ${t.name ?? "Track"}` : (t.name ?? "Track"));
-  }
-
-  if (!ids.length) {
-    throw new Error("No top tracks found for this artist in this market.");
   }
 
   const features = await fetchAudioFeaturesForIds(token, ids);
@@ -414,7 +485,9 @@ async function fetchArtistDigestById(artistId: string, token: string): Promise<M
 
   return {
     kind: "artist",
-    label: `${artistName} (Spotify top tracks)`,
+    label: usedSearchFallback
+      ? `${artistName} (Spotify catalog tracks)`
+      : `${artistName} (Spotify top tracks)`,
     artistLine: artistName,
     trackCount: ids.length,
     analyzedTrackCount: ids.length,
