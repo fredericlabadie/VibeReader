@@ -94,6 +94,25 @@ export type ParsedSpotifyResource =
 const SPOTIFY_ID = "([A-Za-z0-9._-]+)";
 
 /**
+ * Share links append ?si=, &pi=, etc. They are not part of the catalogue resource id; strip so parsing stays stable.
+ */
+function stripSpotifyWebUrlQueryAndHash(urlString: string): string {
+  if (!/^https?:\/\//i.test(urlString)) return urlString;
+  try {
+    const u = new URL(urlString);
+    const h = u.hostname.toLowerCase();
+    if (!h.endsWith("spotify.com") && h !== "spotify.link" && h !== "www.spotify.link") {
+      return urlString;
+    }
+    u.search = "";
+    u.hash = "";
+    return u.toString();
+  } catch {
+    return urlString;
+  }
+}
+
+/**
  * Clean pasted Spotify links so `new URL()` works: many apps omit `https://`,
  * or add invisible Unicode / smart quotes around the string.
  */
@@ -108,9 +127,13 @@ export function normalizeSpotifyPaste(input: string): string {
     .trim();
   if (!s) return s;
   if (/^spotify:(track|album|playlist|artist):/i.test(s)) return s;
-  if (/^https?:\/\//i.test(s)) return s;
-  if (/^(open\.|play\.)?spotify\.com\//i.test(s)) return `https://${s.replace(/^\/+/, "")}`;
-  if (/^(www\.)?spotify\.link\//i.test(s)) return `https://${s.replace(/^\/+/, "")}`;
+  if (/^https?:\/\//i.test(s)) return stripSpotifyWebUrlQueryAndHash(s);
+  if (/^(open\.|play\.)?spotify\.com\//i.test(s)) {
+    return stripSpotifyWebUrlQueryAndHash(`https://${s.replace(/^\/+/, "")}`);
+  }
+  if (/^(www\.)?spotify\.link\//i.test(s)) {
+    return stripSpotifyWebUrlQueryAndHash(`https://${s.replace(/^\/+/, "")}`);
+  }
   return s;
 }
 
@@ -168,6 +191,8 @@ export function parseSpotifyResourceUrl(input: string): ParsedSpotifyResource | 
   try {
     const url = new URL(raw);
     if (!url.hostname.toLowerCase().endsWith("spotify.com")) return null;
+    url.search = "";
+    url.hash = "";
     let path = url.pathname;
     try {
       path = decodeURIComponent(path);
