@@ -394,24 +394,90 @@ async function fetchPlaylistDigest(id: string, token: string): Promise<MusicList
   };
 }
 
-type SpotifyTopTrackRow = { id?: string; name?: string; artists?: Array<{ name?: string }> };
+type SpotifyTopTrackRow = { id?: string; name?: string; artists?: Array<{ id?: string; name?: string }> };
 
-/** When top-tracks is blocked (HTTP 403 on many dev apps), catalog search still returns tracks. */
-async function fetchArtistTracksBySearch(artistName: string, token: string): Promise<SpotifyTopTrackRow[]> {
+function trackInvolvesArtistId(t: SpotifyTopTrackRow, artistId: string): boolean {
+  return Array.isArray(t.artists) && t.artists.some((a) => a.id === artistId);
+}
+
+/**
+ * When top-tracks is blocked (HTTP 403 on many dev apps), catalog search usually still works.
+ * Results are filtered to tracks that list this artist id (avoids false positives).
+ */
+async function fetchArtistTracksBySearch(
+  artistName: string,
+  artistId: string,
+  token: string,
+): Promise<{ tracks: SpotifyTopTrackRow[]; lastHttpStatus: number | null }> {
   const headers = { Authorization: `Bearer ${token}` };
-  const q = encodeURIComponent(`artist:${artistName}`);
-  const sr = await fetch(`https://api.spotify.com/v1/search?q=${q}&type=track&limit=20`, { headers });
-  if (!sr.ok) return [];
-  const sj = (await sr.json()) as { tracks?: { items?: SpotifyTopTrackRow[] } };
-  const items = sj.tracks?.items ?? [];
+  const name = artistName.trim().normalize("NFKC");
+  if (!name) return { tracks: [], lastHttpStatus: null };
+
+  const queries: string[] = [];
+  const safeForQuotes = name.replace(/"/g, "");
+  if (safeForQuotes.includes(" ") || /[^\w\s-]/.test(safeForQuotes)) {
+    queries.push(`artist:"${safeForQuotes}"`);
+  }
+  queries.push(`artist:${name}`);
+
   const seen = new Set<string>();
   const out: SpotifyTopTrackRow[] = [];
-  for (const t of items) {
-    if (!t?.id || seen.has(t.id)) continue;
-    seen.add(t.id);
-    out.push(t);
+  let lastHttpStatus: number | null = null;
+
+  for (const raw of queries) {
     if (out.length >= 15) break;
+    const q = encodeURIComponent(raw);
+    const sr = await fetch(`https://api.spotify.com/v1/search?q=${q}&type=track&limit=20`, { headers });
+    lastHttpStatus = sr.status;
+    if (!sr.ok) continue;
+    const sj = (await sr.json()) as { tracks?: { items?: Array<SpotifyTopTrackRow | null> } };
+    const items = sj.tracks?.items ?? [];
+    for (const t of items) {
+      if (!t?.id || seen.has(t.id)) continue;
+      if (!trackInvolvesArtistId(t, artistId)) continue;
+      seen.add(t.id);
+      out.push(t);
+      if (out.length >= 15) break;
+    }
+    if (out.length) break;
   }
+
+  return { tracks: out, lastHttpStatus };
+}
+
+/** Walk recent albums when search fails or returns nothing (still works on many restricted apps). */
+async function fetchArtistTracksFromAlbums(
+  artistId: string,
+  token: string,
+): Promise<SpotifyTopTrackRow[]> {
+  const headers = { Authorization: `Bearer ${token}` };
+  const al = await fetch(
+    `https://api.spotify.com/v1/artists/${artistId}/albums?include_groups=album,single&limit=12`,
+    { headers },
+  );
+  if (!al.ok) return [];
+  const aj = (await al.json()) as { items?: Array<{ id?: string }> };
+  const albumIds = (aj.items ?? []).map((x) => x.id).filter((id): id is string => !!id);
+  const seen = new Set<string>();
+  const out: SpotifyTopTrackRow[] = [];
+
+  for (const albumId of albumIds) {
+    if (out.length >= 15) break;
+    const tr = await fetch(`https://api.spotify.com/v1/albums/${albumId}`, { headers });
+    if (!tr.ok) continue;
+    const tj = (await tr.json()) as {
+      tracks?: { items?: Array<SpotifyTopTrackRow | null> };
+    };
+    const items = tj.tracks?.items ?? [];
+    for (const t of items) {
+      if (!t?.id || seen.has(t.id)) continue;
+      if (!trackInvolvesArtistId(t, artistId)) continue;
+      seen.add(t.id);
+      out.push(t);
+      if (out.length >= 15) break;
+    }
+  }
+
   return out;
 }
 
@@ -453,9 +519,21 @@ async function fetchArtistDigestById(artistId: string, token: string): Promise<M
   }
 
   let usedSearchFallback = false;
+  let searchStatus: number | null = null;
   if (!tracks.length) {
-    tracks = await fetchArtistTracksBySearch(artistName, token);
-    usedSearchFallback = true;
+    const { tracks: found, lastHttpStatus } = await fetchArtistTracksBySearch(artistName, artistId, token);
+    searchStatus = lastHttpStatus;
+    if (found.length) {
+      tracks = found;
+      usedSearchFallback = true;
+    }
+  }
+  if (!tracks.length) {
+    const fromAlbums = await fetchArtistTracksFromAlbums(artistId, token);
+    if (fromAlbums.length) {
+      tracks = fromAlbums;
+      usedSearchFallback = true;
+    }
   }
 
   const ids = tracks.map((t) => t.id).filter((id): id is string => !!id).slice(0, 15);
@@ -464,11 +542,16 @@ async function fetchArtistDigestById(artistId: string, token: string): Promise<M
       lastFail.includes("403") &&
       "Spotify blocked artist top-tracks for this app (HTTP 403). See https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api. ";
     const other = lastFail && !lastFail.includes("403") ? `${lastFail} ` : "";
+    const searchHint =
+      searchStatus != null && searchStatus !== 200
+        ? `Track search last HTTP ${searchStatus}. `
+        : "";
     throw new Error(
       "Could not load tracks for this artist. " +
         (policy403 || "") +
         other +
-        "Catalog track search returned nothing—try text mode or another artist. " +
+        searchHint +
+        "Catalog search and album crawl returned nothing—try text mode or another artist. " +
         "If your Spotify app has top-tracks access, set SPOTIFY_MARKET to a 2-letter country code (e.g. FR).",
     );
   }
