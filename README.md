@@ -1,53 +1,101 @@
-# VibeReader — Book ↔ Song
+# VibeReader
 
-Small **Next.js** app with two **AI lookups** (Claude):
+Book-to-music and music-to-book recommendations powered by Claude.
 
-1. **Book → songs** — From a book title (author optional), get a named list of **song** ideas (title + artist) that fit the read.
-2. **Song → books** — From **one song** (Spotify **track** link, or song title + artist in text), get **several** novel suggestions.
+<!-- SCREENSHOT: Drop a 1400px wide screenshot of the main UI with a result loaded — either book→songs or song→books, whichever looks more complete. Filename: screenshot.png -->
+<!-- ![VibeReader](./screenshot.png) -->
 
-If you omit the author on book → songs and several well-known books share the title, the API returns candidates and the UI asks you to pick an author before generating songs.
+**Live:** [vibereader.fredericlabadie.com](https://vibereader.fredericlabadie.com)
 
-**Repo:** [github.com/fredericlabadie/VibeReader](https://github.com/fredericlabadie/VibeReader)
+---
 
-This project is **separate** from [Writers Room](https://github.com/fredericlabadie/writers-room). You can copy the same API keys into `.env.local` here:
+## What it is
 
-- `ANTHROPIC_API_KEY` (required)
-- `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` — optional; required only for **Song → books** via Spotify **track** URL (audio summaries). Text-only song → books works without Spotify.
-- `SPOTIFY_MARKET` (optional, default `US`) — ISO **3166-1 alpha-2** country code for any Spotify calls that still use a market (rare in the song-only flow).
+VibeReader finds the sonic equivalent of a book, or the literary equivalent of a song. Give it a novel and it finds albums and tracks that match its atmosphere, pacing, and emotional register. Give it a song and it surfaces books that live in the same headspace.
 
-Default dev port is **3001** so it can run next to Writers Room on `3000`.
+It uses Claude to reason about mood, texture, and thematic resonance rather than just genre tags — so *Blood Meridian* doesn't come back with Western soundtracks, and Joy Division doesn't just return bleak fiction.
 
-## Setup
+---
+
+## How it works
+
+**Book → Songs**
+Enter a title and author. Claude analyzes the book's tone, period, pacing, and emotional arc, then returns a curated playlist of tracks and artists that share its atmosphere — with reasoning for each recommendation.
+
+**Song → Books**
+Enter a track title and artist, or paste a Spotify URL. Claude reads the sonic and lyrical character of the song and returns books that inhabit the same emotional and aesthetic space.
+
+---
+
+## Stack
+
+- **Next.js 14** (App Router) + TypeScript
+- **Anthropic claude-sonnet-4-5** — all recommendation calls
+- **Spotify Web API** (optional) — pulls audio features and track metadata from URLs
+- **Vercel** — deployment
+
+---
+
+## Local development
 
 ```bash
-cp .env.example .env.local
-# Paste keys (same names as Writers Room where applicable)
-
+git clone https://github.com/fredericlabadie/VibeReader
+cd VibeReader
 npm install
+cp .env.example .env.local
+# Fill in env vars
 npm run dev
-# → http://localhost:3001
 ```
 
-## Deploy
+**Required:**
+```env
+ANTHROPIC_API_KEY=
+```
 
-Works on Vercel like any Next app: set the same env vars in the project settings. The recommendations route sets `maxDuration` to **60** seconds.
+**Optional — Spotify track URL support:**
+```env
+SPOTIFY_CLIENT_ID=
+SPOTIFY_CLIENT_SECRET=
+```
+
+**Optional — API protection:**
+```env
+# Set both to the same value. Generate with: openssl rand -base64 32
+API_SECRET=
+NEXT_PUBLIC_API_SECRET=
+```
+
+---
 
 ## API
 
-`POST /api/recommendations` with JSON:
+`POST /api/recommendations`
 
-**Book → songs**
+**Book to songs:**
+```json
+{
+  "mode": "book_to_songs",
+  "bookTitle": "Beloved",
+  "bookAuthor": "Toni Morrison"
+}
+```
 
-- `{ "mode": "book_to_songs", "bookTitle", "bookNotes?" }` — author omitted → response may be disambiguation (see below).
-- `{ "mode": "book_to_songs", "bookTitle", "bookAuthor", "bookNotes?" }` — author known → song list directly.
-- Response **song list**: `{ "mode": "book_to_songs", "result": { "songListName", "rationale", "moodTags", "songs": [{ "title", "artist", "whyItFits" }] } }` (typically 10–16 songs).
-- Response **pick author** (when title alone matches several books): `{ "mode": "book_to_songs", "step": "pick_author", "candidates": [{ "title", "author", "note?" }] }` — resend with the chosen `bookTitle` and `bookAuthor` from one row.
+**Song to books (manual):**
+```json
+{
+  "mode": "song_to_books",
+  "musicTitle": "Love Will Tear Us Apart",
+  "musicArtist": "Joy Division",
+  "musicNotes": "post-punk, sparse, grief"
+}
+```
 
-**Song → books**
+**Song to books (Spotify URL):**
+```json
+{
+  "mode": "song_to_books",
+  "spotifyUrl": "https://open.spotify.com/track/..."
+}
+```
 
-- `{ "mode": "song_to_books", "spotifyUrl" }` — must resolve to a **track** only (not album, artist, or playlist).
-- `{ "mode": "song_to_books", "musicTitle", "musicArtist", "musicNotes?" }` — text description of one song.
-
-Response `result`: `{ "rationale", "books": [{ "title", "author", "whyItFits" }] }` (typically **at least six** books). With Spotify, the response may also include `digest` (listening summary used for prompting).
-
-There is **no authentication** on this route; if you expose the app publicly, consider adding your own protection (e.g. Vercel deployment protection or a shared secret header).
+If `API_SECRET` is set, requests must include `Authorization: Bearer <secret>`.
