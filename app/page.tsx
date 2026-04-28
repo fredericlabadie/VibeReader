@@ -75,9 +75,13 @@ export default function Home() {
     setSongToBooks(null);
     setDigestSummary(null);
     try {
+      const apiSecret = process.env.NEXT_PUBLIC_API_SECRET;
       const res = await fetch("/api/recommendations", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(apiSecret ? { Authorization: `Bearer ${apiSecret}` } : {}),
+        },
         body: JSON.stringify({
           mode: "book_to_songs",
           bookTitle: c.title.trim(),
@@ -124,9 +128,13 @@ export default function Home() {
                 musicNotes: musicNotes.trim() || undefined,
               };
 
+      const apiSecret = process.env.NEXT_PUBLIC_API_SECRET;
       const res = await fetch("/api/recommendations", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(apiSecret ? { Authorization: `Bearer ${apiSecret}` } : {}),
+        },
         body: JSON.stringify(body),
       });
       const data = await res.json();
