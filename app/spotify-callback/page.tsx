@@ -30,6 +30,7 @@ function CallbackInner() {
 
   useEffect(() => {
     const code = searchParams?.get("code");
+    const returnedState = searchParams?.get("state");
     const error = searchParams?.get("error");
 
     if (error || !code) {
@@ -38,10 +39,28 @@ function CallbackInner() {
       return;
     }
 
-    // Retrieve stored PKCE verifier and mix data
-    const verifier = sessionStorage.getItem("vr_pkce_verifier");
-    const mixRaw = sessionStorage.getItem("vr_pending_mix");
+    // Retrieve stored PKCE verifier, state, and mix data — wrapped in try/catch for private browsing
+    let verifier: string | null = null;
+    let mixRaw: string | null = null;
+    let storedState: string | null = null;
+    try {
+      verifier = sessionStorage.getItem("vr_pkce_verifier");
+      mixRaw = sessionStorage.getItem("vr_pending_mix");
+      storedState = sessionStorage.getItem("vr_pkce_state");
+    } catch {
+      setStatus("error");
+      setMessage("Session storage is blocked — try disabling private browsing mode or allowing storage for this site.");
+      return;
+    }
+
     const redirectUri = `${window.location.origin}/spotify-callback`;
+
+    // Verify state param to prevent CSRF
+    if (storedState && returnedState !== storedState) {
+      setStatus("error");
+      setMessage("State mismatch — this authorisation link may have been tampered with. Please try again.");
+      return;
+    }
 
     if (!verifier || !mixRaw) {
       setStatus("error");
@@ -67,6 +86,7 @@ function CallbackInner() {
 
         // Clear PKCE verifier
         sessionStorage.removeItem("vr_pkce_verifier");
+        sessionStorage.removeItem("vr_pkce_state");
 
         // 2. Create playlist
         setStatus("creating");

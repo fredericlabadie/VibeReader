@@ -66,8 +66,7 @@ export default function ArchivePage() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;1,9..144,400&family=DM+Mono:wght@400;500&display=swap');
         @keyframes vrSpin { to { transform: rotate(360deg); } }
-        .vr-mix-card { transition: transform .15s; text-decoration: none; color: inherit; display: block; }
-        .vr-mix-card:hover { transform: translate(-2px,-2px) rotate(-0.6deg); }
+        .vr-mix-card { text-decoration: none; color: inherit; display: block; }
         .vr-filter-chip { cursor: pointer; transition: background .12s, color .12s; }
       `}</style>
 

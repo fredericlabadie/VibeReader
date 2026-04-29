@@ -29,9 +29,6 @@ const F = {
 function spotifySearchUrl(q: string) {
   return `https://open.spotify.com/search/${encodeURIComponent(q)}`;
 }
-function openLibraryUrl(title: string, author: string) {
-  return `https://openlibrary.org/search?q=${encodeURIComponent(`${title} ${author}`)}`;
-}
 function goodreadsUrl(title: string, author: string) {
   return `https://www.goodreads.com/search?q=${encodeURIComponent(`${title} ${author}`)}`;
 }
@@ -59,14 +56,21 @@ async function startSpotifyAuth(songs: Array<{title:string;artist:string}>, play
   if (!clientId) { alert("Spotify export is not configured on this deployment."); return; }
   const verifier = generateVerifier();
   const challenge = await generateChallenge(verifier);
-  sessionStorage.setItem("vr_pkce_verifier", verifier);
-  sessionStorage.setItem("vr_pending_mix", JSON.stringify({ songs, playlistName, bookTitle }));
+  const state = Math.random().toString(36).slice(2);
+  try {
+    sessionStorage.setItem("vr_pkce_verifier", verifier);
+    sessionStorage.setItem("vr_pkce_state", state);
+    sessionStorage.setItem("vr_pending_mix", JSON.stringify({ songs, playlistName, bookTitle }));
+  } catch {
+    alert("Session storage is blocked. Try disabling private browsing mode to export playlists.");
+    return;
+  }
   const params = new URLSearchParams({
     client_id: clientId,
     response_type: "code",
     redirect_uri: `${window.location.origin}/spotify-callback`,
     scope: "playlist-modify-public playlist-modify-private",
-    state: Math.random().toString(36).slice(2),
+    state,
     code_challenge: challenge,
     code_challenge_method: "S256",
   });

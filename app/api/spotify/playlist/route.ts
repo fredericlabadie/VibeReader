@@ -39,23 +39,30 @@ export async function POST(req: Request) {
     const me = await spotifyGet("https://api.spotify.com/v1/me", accessToken);
 
     // 2. Search for each track (parallel, cap at 16)
-    const trackUris: string[] = [];
+    const results: Array<{ idx: number; uri: string | null }> = [];
     const notFound: string[] = [];
 
-    await Promise.all(songs.slice(0, 16).map(async (s) => {
+    await Promise.all(songs.slice(0, 16).map(async (s, idx) => {
       try {
         const q = encodeURIComponent(`track:${s.title} artist:${s.artist}`);
         const res = await spotifyGet(
           `https://api.spotify.com/v1/search?q=${q}&type=track&limit=1`,
           accessToken
         );
-        const uri = res?.tracks?.items?.[0]?.uri;
-        if (uri) trackUris.push(uri);
-        else notFound.push(`${s.artist} — ${s.title}`);
+        const uri = res?.tracks?.items?.[0]?.uri ?? null;
+        results.push({ idx, uri });
+        if (!uri) notFound.push(`${s.artist} — ${s.title}`);
       } catch {
+        results.push({ idx, uri: null });
         notFound.push(`${s.artist} — ${s.title}`);
       }
     }));
+
+    // Sort by original index to preserve tracklist order
+    const trackUris = results
+      .sort((a, b) => a.idx - b.idx)
+      .map(r => r.uri)
+      .filter((u): u is string => u !== null);
 
     if (!trackUris.length) {
       return NextResponse.json({ error: "None of the tracks could be found on Spotify." }, { status: 404 });
