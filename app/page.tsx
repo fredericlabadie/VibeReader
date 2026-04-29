@@ -211,6 +211,89 @@ const RECENT_MIXES = [
   ["Cigarette in the Rain", "Trust Exercise"],
 ];
 
+// ── Error: bad Spotify link ──────────────────────────────────────────────
+function ErrorScreenSpotify({ url, onBack }: { url: string; onBack: () => void }) {
+  const linkType = url.includes("/album/") ? "album" : url.includes("/artist/") ? "artist" : url.includes("/playlist/") ? "playlist" : "non-track link";
+  return (
+    <div style={{ minHeight: "100vh", background: P.paper, backgroundImage: `radial-gradient(${P.ink}11 1px, transparent 1px) 0 0/3px 3px`, padding: "36px 48px", position: "relative", fontFamily: "'Inter', sans-serif" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
+        <ZineLogo size={20} />
+        <span style={{ fontFamily: F.mono, fontSize: 10, color: P.fade, letterSpacing: "0.14em", textTransform: "uppercase" }}>· error · track only</span>
+      </div>
+      <div style={{ position: "absolute", top: 32, right: 48 }}><Stamp color={P.red} rotate={7}>track only!</Stamp></div>
+
+      <h2 style={{ fontFamily: F.display, fontSize: "clamp(36px, 6vw, 56px)", fontWeight: 700, lineHeight: 0.92, letterSpacing: "-0.025em", color: P.ink, maxWidth: 560 }}>
+        that link goes to<br />an <em style={{ fontWeight: 400, color: P.red }}>{linkType}</em>.
+      </h2>
+      <p style={{ fontFamily: F.serif, fontStyle: "italic", fontSize: 17, lineHeight: 1.55, color: P.ink2, marginTop: 16, maxWidth: 460 }}>
+        VibeReader needs a <em>single track</em> to read the vibe — one song at a time. Albums and playlists won't work yet.
+      </p>
+
+      <div style={{ marginTop: 22, padding: 16, background: P.paperDark, border: `1.5px solid ${P.ink}`, maxWidth: 520 }}>
+        <div style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: "0.14em", color: P.fade, textTransform: "uppercase", marginBottom: 6 }}>you sent</div>
+        <div style={{ fontFamily: F.mono, fontSize: 12, color: P.ink, wordBreak: "break-all", borderBottom: `1.5px dashed ${P.ink}55`, paddingBottom: 8 }}>
+          {url.replace(/https?:\/\/(open\.)?spotify\.com\//, "open.spotify.com/").slice(0, 60)}
+          {url.length > 60 ? "…" : ""}
+        </div>
+        <div style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: "0.14em", color: P.fade, textTransform: "uppercase", marginTop: 12, marginBottom: 6 }}>try this instead</div>
+        <div style={{ fontFamily: F.mono, fontSize: 12, color: P.ink2 }}>
+          open.spotify.com/<span style={{ background: P.green + "44", color: P.ink, padding: "0 4px" }}>track</span>/…
+        </div>
+      </div>
+
+      <button className="vr-cta" onClick={onBack}
+        style={{ marginTop: 22, padding: "11px 22px", background: P.ink, color: P.paper, fontFamily: F.display, fontSize: 16, fontWeight: 700, fontStyle: "italic", border: `2px solid ${P.ink}`, boxShadow: `4px 4px 0 ${P.red}`, cursor: "pointer" }}>
+        paste a track link →
+      </button>
+      <p style={{ marginTop: 12, fontFamily: F.serif, fontStyle: "italic", fontSize: 13, color: P.fade }}>
+        tip: share → copy link from the <em>song</em> page on Spotify, not the album.
+      </p>
+    </div>
+  );
+}
+
+// ── Error: tape jam (generic API failure) ─────────────────────────────────
+function ErrorScreenTapeJam({ errorMsg, onBack, onRetry }: { errorMsg: string; onBack: () => void; onRetry: () => void }) {
+  const reqId = Math.random().toString(36).slice(2, 8).toUpperCase();
+  return (
+    <div style={{ minHeight: "100vh", background: P.paper, backgroundImage: `radial-gradient(${P.ink}11 1px, transparent 1px) 0 0/3px 3px`, padding: "36px 48px", position: "relative", fontFamily: "'Inter', sans-serif", overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
+        <ZineLogo size={20} />
+        <span style={{ fontFamily: F.mono, fontSize: 10, color: P.fade, letterSpacing: "0.14em", textTransform: "uppercase" }}>· tape jam</span>
+      </div>
+      {/* Watermark */}
+      <div style={{ position: "absolute", top: 28, right: 36, fontFamily: F.display, fontStyle: "italic", fontWeight: 700, fontSize: 90, color: `${P.ink}14`, userSelect: "none", lineHeight: 1 }}>?!</div>
+
+      <h2 style={{ fontFamily: F.display, fontSize: "clamp(36px, 6vw, 56px)", fontWeight: 700, lineHeight: 0.92, letterSpacing: "-0.025em", color: P.ink, maxWidth: 520 }}>
+        the reels<br /><em style={{ fontWeight: 400, color: P.red }}>got tangled.</em>
+      </h2>
+      <p style={{ fontFamily: F.serif, fontStyle: "italic", fontSize: 17, lineHeight: 1.55, color: P.ink2, marginTop: 16, maxWidth: 480 }}>
+        claude didn't come back this time. could be the title's too obscure, the API's having a moment, or your connection is gauzy.
+      </p>
+
+      <div style={{ marginTop: 20, padding: 14, background: P.paperDark, border: `1.5px solid ${P.ink}`, fontFamily: F.mono, fontSize: 11, color: P.ink2, letterSpacing: "0.04em", maxWidth: 520 }}>
+        <div style={{ marginBottom: 4, color: P.fade, textTransform: "uppercase", letterSpacing: "0.14em", fontSize: 10 }}>request id · {reqId}</div>
+        <code style={{ fontFamily: F.mono, fontSize: 11, wordBreak: "break-all" }}>{errorMsg || "POST /api/recommendations → error"}</code>
+      </div>
+
+      <div style={{ display: "flex", gap: 12, marginTop: 22, flexWrap: "wrap" }}>
+        <button className="vr-cta" onClick={onRetry}
+          style={{ padding: "11px 22px", background: P.red, color: P.paper, fontFamily: F.display, fontSize: 16, fontWeight: 700, fontStyle: "italic", border: `2px solid ${P.ink}`, boxShadow: `4px 4px 0 ${P.ink}`, cursor: "pointer" }}>
+          ↻ try again
+        </button>
+        <button onClick={onBack}
+          style={{ padding: "11px 22px", background: "transparent", color: P.ink, fontFamily: F.mono, fontSize: 11, letterSpacing: "0.12em", textTransform: "uppercase", border: `2px solid ${P.ink}`, cursor: "pointer" }}>
+          describe in text →
+        </button>
+      </div>
+
+      <p style={{ position: "absolute", bottom: 36, left: 48, right: 48, fontFamily: F.serif, fontStyle: "italic", fontSize: 13, color: P.fade, lineHeight: 1.5 }}>
+        <em>tip:</em> for very obscure books, try adding the author. claude is great with the canon, weaker with self-published.
+      </p>
+    </div>
+  );
+}
+
 // ── Loading screen ────────────────────────────────────────────────────────
 const LOADING_STAGES = [
   "reading the book",
@@ -239,7 +322,7 @@ function LoadingScreen({ book, onBack }: { book: string; onBack: () => void }) {
         </div>
       </div>
 
-      <div style={{ padding: "80px 80px 0", display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 80, alignItems: "center" }}>
+      <div className="vr-loading-grid" style={{ padding: "80px 80px 0", display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 80, alignItems: "center" }}>
         {/* Left */}
         <div>
           <div style={{ fontFamily: F.mono, fontSize: 11, letterSpacing: "0.18em", color: P.red, textTransform: "uppercase", marginBottom: 16 }}>side a · in production</div>
@@ -265,7 +348,7 @@ function LoadingScreen({ book, onBack }: { book: string; onBack: () => void }) {
         </div>
 
         {/* Right: cassette deck */}
-        <div style={{ display: "flex", justifyContent: "center", position: "relative" }}>
+        <div className="vr-loading-deck" style={{ display: "flex", justifyContent: "center", position: "relative" }}>
           <div style={{ position: "absolute", top: -16, right: 20 }}><Stamp color={P.blue} rotate={8}>do not eject</Stamp></div>
           <div style={{ width: 340, padding: 28, background: P.ink, color: P.paper, boxShadow: `8px 8px 0 ${P.red}` }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontFamily: F.mono, fontSize: 9, letterSpacing: "0.16em", textTransform: "uppercase", color: P.yellow }}>
@@ -313,9 +396,9 @@ function DisambigScreen({ query, candidates, busy, onPick, onBack }: {
     <div style={{ minHeight: "100vh", background: P.paper, backgroundImage: `radial-gradient(${P.ink}11 1px, transparent 1px) 0 0/3px 3px`, color: P.ink, fontFamily: F.ui, position: "relative" }}>
       <ZineMasthead crumb="wait — which one?" onBack={onBack} />
 
-      <div style={{ padding: "40px 56px", display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: 80 }}>
+      <div className="vr-disambig-grid" style={{ padding: "40px 56px", display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: 80 }}>
         {/* Left */}
-        <div>
+        <div className="vr-disambig-left">
           <div style={{ fontFamily: F.mono, fontSize: 11, letterSpacing: "0.18em", color: P.red, textTransform: "uppercase", marginBottom: 14 }}>more than one match</div>
           <h1 style={{ fontFamily: F.display, fontWeight: 700, lineHeight: 0.88, letterSpacing: "-0.035em", color: P.ink }}>
             <span style={{ fontSize: 80 }}>&ldquo;<em style={{ fontWeight: 400, color: P.red, fontStyle: "italic" }}>{query}</em>&rdquo;</span>
@@ -403,7 +486,7 @@ function SongResultScreen({ result, bookTitle, bookAuthor, onBack, onReroll }: {
       <ZineMasthead crumb="side a · just mixed" onBack={onBack} />
 
       {/* Hero */}
-      <div style={{ padding: "32px 56px 0", display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 56, alignItems: "flex-start" }}>
+      <div className="vr-result-hero" style={{ padding: "32px 56px 0", display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 56, alignItems: "flex-start" }}>
         <div>
           <div style={{ fontFamily: F.mono, fontSize: 11, letterSpacing: "0.18em", color: P.red, textTransform: "uppercase", marginBottom: 8 }}>
             side a · book → songs · {result.songs.length} tracks
@@ -437,12 +520,20 @@ function SongResultScreen({ result, bookTitle, bookAuthor, onBack, onReroll }: {
               style={{ padding: "13px 18px", background: "transparent", color: P.ink, fontFamily: F.mono, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", border: `2px solid ${P.ink}`, cursor: "pointer" }}>
               {copied ? "copied! ✓" : "copy as text ⎘"}
             </button>
+            <button onClick={() => {
+              const tracks = result.songs.map(s => `${s.artist} · ${s.title}`).join("|");
+              const url = `/api/og?mixName=${encodeURIComponent(result.songListName)}&forBook=${encodeURIComponent(bookTitle)}&author=${encodeURIComponent(bookAuthor ?? "")}&tracks=${encodeURIComponent(tracks)}&square=1`;
+              const a = document.createElement("a"); a.href = url; a.download = `${result.songListName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`; a.click();
+            }}
+              style={{ padding: "13px 18px", background: "transparent", color: P.ink, fontFamily: F.mono, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", border: `2px solid ${P.ink}`, cursor: "pointer" }}>
+              save card ↓
+            </button>
           </div>
           <div style={{ marginTop: 8, fontFamily: F.mono, fontSize: 9, color: P.fade, letterSpacing: "0.06em" }}>opens search · queue is on you</div>
         </div>
 
         {/* Cassette card */}
-        <div style={{ position: "relative", paddingTop: 8 }}>
+        <div className="vr-cassette-card-col" style={{ position: "relative", paddingTop: 8 }}>
           <div style={{ position: "absolute", top: -8, right: 8 }}><Stamp color={P.red} rotate={8}>just mixed</Stamp></div>
           <div style={{ background: P.paperDark, border: `2px solid ${P.ink}`, padding: 22, transform: "rotate(-1.5deg)", boxShadow: `8px 8px 0 ${P.ink}` }}>
             <CassetteSpine side="A" label={result.songListName} />
@@ -480,12 +571,12 @@ function SongResultScreen({ result, bookTitle, bookAuthor, onBack, onReroll }: {
       )}
 
       {/* Tracklist */}
-      <div style={{ padding: "30px 56px 16px", borderTop: `2px solid ${P.ink}`, marginTop: 36 }}>
+      <div className="vr-tracklist" style={{ padding: "30px 56px 16px", borderTop: `2px solid ${P.ink}`, marginTop: 36 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 18 }}>
           <div style={{ fontFamily: F.mono, fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase" }}>tracklist</div>
           <div style={{ fontFamily: F.mono, fontSize: 10, color: P.fade, letterSpacing: "0.05em" }}>tap any to search · double-check titles before you queue</div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, columnGap: 40 }}>
+        <div className="vr-tracklist-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, columnGap: 40 }}>
           {result.songs.map((s, i) => (
             <a key={i} className="vr-track-row" href={spotifySearchUrl(`${s.artist} ${s.title}`)} target="_blank" rel="noopener noreferrer"
               style={{ display: "grid", gridTemplateColumns: "40px 72px 1fr", gap: 14, padding: "12px 6px", borderBottom: `1px dotted ${P.ink}55`, alignItems: "flex-start", textDecoration: "none", color: "inherit" }}>
@@ -504,7 +595,7 @@ function SongResultScreen({ result, bookTitle, bookAuthor, onBack, onReroll }: {
       </div>
 
       {/* Bottom reroll strip */}
-      <div style={{ margin: "8px 56px 0", padding: "22px 28px", background: P.ink, color: P.paper, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
+      <div className="vr-reroll" style={{ margin: "8px 56px 0", padding: "22px 28px", background: P.ink, color: P.paper, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
         <div style={{ fontFamily: F.serif, fontStyle: "italic", fontSize: 16, lineHeight: 1.45, maxWidth: 620 }}>
           want a different angle? add a vibe note like <em style={{ color: P.yellow }}>"more strings, less voice"</em> or <em style={{ color: P.yellow }}>"latin only"</em> and reroll.
         </div>
@@ -579,7 +670,7 @@ function BookResultScreen({ result, songTitle, songArtist, digestSummary, onBack
           <div style={{ fontFamily: F.mono, fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase" }}>the stack · {result.books.length} books</div>
           <div style={{ fontFamily: F.mono, fontSize: 10, color: P.fade }}>each book is a track on side b</div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 30, columnGap: 50 }}>
+        <div className="vr-book-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 30, columnGap: 50 }}>
           {result.books.map((b, i) => (
             <div key={i} style={{ display: "grid", gridTemplateColumns: "156px 1fr", gap: 22, alignItems: "flex-start", paddingBottom: 24, borderBottom: i >= result.books.length - 2 ? "none" : `1px dotted ${P.ink}55` }}>
               <div className="vr-book-hover" style={{ transform: i % 2 === 0 ? "rotate(-1.5deg)" : "rotate(1.2deg)" }}>
@@ -625,6 +716,7 @@ export default function Home() {
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [errorType, setErrorType] = useState<"spotify_album" | "tape_jam" | null>(null);
   const [digestSummary, setDigestSummary] = useState<string | null>(null);
   const [bookSongs, setBookSongs] = useState<BookToSongsResult | null>(null);
   const [songToBooks, setSongToBooks] = useState<SongToBooksResult | null>(null);
@@ -683,7 +775,10 @@ export default function Home() {
         else setDigestSummary("using song title + artist from your text (no spotify audio data).");
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
+      const msg = e instanceof Error ? e.message : "Something went wrong";
+      setError(msg);
+      if (/album|playlist|artist|non.track/i.test(msg)) setErrorType("spotify_album");
+      else setErrorType("tape_jam");
     } finally {
       setBusy(false);
     }
@@ -704,7 +799,17 @@ export default function Home() {
   }
 
   function reset() {
-    setBookSongs(null); setSongToBooks(null); setAuthorCandidates(null); setError(""); setDigestSummary(null);
+    setBookSongs(null); setSongToBooks(null); setAuthorCandidates(null); setError(""); setDigestSummary(null); setErrorType(null);
+  }
+
+  const isMobile = useIsMobile();
+
+  // ── Error screens ────────────────────────────────────────────────────────
+  if (errorType === "spotify_album") {
+    return <ErrorScreenSpotify url={spotifyUrl} onBack={() => { reset(); setMusicInputMode("spotify"); }} />;
+  }
+  if (errorType === "tape_jam") {
+    return <ErrorScreenTapeJam errorMsg={error} onBack={reset} onRetry={() => { setErrorType(null); setError(""); run(); }} />;
   }
 
   // ── Result screens ──────────────────────────────────────────────────────
@@ -729,13 +834,13 @@ export default function Home() {
   return (
     <div style={{ minHeight: "100vh", position: "relative" }}>
       {/* Masthead */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "24px 56px 0" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: isMobile ? "16px 22px 0" : "24px 56px 0" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
           <ZineLogo size={26} />
           <span style={{ fontFamily: F.mono, fontSize: 10, color: P.fade, letterSpacing: "0.16em", textTransform: "uppercase" }}>· issue 037 · weekly</span>
         </div>
         <div style={{ display: "flex", gap: 18, fontFamily: F.mono, fontSize: 11, letterSpacing: "0.1em", color: P.ink, textTransform: "uppercase", alignItems: "center" }}>
-          <span style={{ cursor: "pointer", opacity: 0.5 }}>archive</span>
+          <a href="/archive" style={{ cursor: "pointer", opacity: 0.7, textDecoration: "none", color: P.ink, fontFamily: F.mono, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase" }}>archive</a>
           <span style={{ cursor: "pointer", opacity: 0.5 }}>about</span>
           <a href="https://github.com/fredericlabadie/VibeReader" target="_blank" rel="noopener noreferrer"
             style={{ textDecoration: "none", color: P.ink }}>github ↗</a>
@@ -753,7 +858,7 @@ export default function Home() {
         {/* Hero */}
         <div>
           <div style={{ fontFamily: F.mono, fontSize: 11, letterSpacing: "0.18em", color: P.red, textTransform: "uppercase", marginBottom: 14 }}>two lookups · one vibe</div>
-          <h1 style={{ fontFamily: F.display, fontWeight: 700, fontSize: "clamp(72px, 10vw, 120px)", lineHeight: 0.88, letterSpacing: "-0.035em", color: P.ink }}>
+          <h1 style={{ fontFamily: F.display, fontWeight: 700, fontSize: isMobile ? 64 : "clamp(72px, 10vw, 120px)", lineHeight: 0.88, letterSpacing: "-0.035em", color: P.ink }}>
             what does<br />
             <span style={{ fontStyle: "italic", fontWeight: 400, color: P.red }}>this book</span><br />
             <span style={{ position: "relative", display: "inline-block" }}>
@@ -765,8 +870,8 @@ export default function Home() {
             tell me what you're reading; i'll hand you a list of songs. tell me what you're playing; i'll hand you a stack of novels. not a review—a starting place.
           </p>
 
-          {/* Recently mixed */}
-          <div style={{ marginTop: 30, paddingTop: 16, borderTop: `1.5px solid ${P.ink}` }}>
+          {/* Recently mixed — hidden on mobile */}
+          {!isMobile && <div style={{ marginTop: 30, paddingTop: 16, borderTop: `1.5px solid ${P.ink}` }}>
             <div style={{ fontFamily: F.mono, fontSize: 10, letterSpacing: "0.16em", color: P.fade, textTransform: "uppercase", marginBottom: 12 }}>↓ recently mixed by readers</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10 }}>
               {RECENT_MIXES.map(([mix, book], i) => (
@@ -776,7 +881,7 @@ export default function Home() {
                 </div>
               ))}
             </div>
-          </div>
+          </div>}
         </div>
 
         {/* Form */}
@@ -848,8 +953,8 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Bottom rail — value props */}
-      <div style={{ marginTop: 60, padding: "18px 56px", borderTop: `2px solid ${P.ink}`, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 18, alignItems: "flex-start" }}>
+      {/* Bottom rail — hidden on mobile */}
+      {!isMobile && <div style={{ marginTop: 60, padding: "18px 56px", borderTop: `2px solid ${P.ink}`, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 18, alignItems: "flex-start" }}>
         {[
           { n: "01", h: "14 tracks, named.", s: "every mix gets a side-name and a rationale. the mix has a point of view." },
           { n: "02", h: "two ways in.", s: "book → songs, or song → books. one button rules them both." },
@@ -864,7 +969,7 @@ export default function Home() {
             </div>
           </div>
         ))}
-      </div>
+      </div>}
     </div>
   );
 }

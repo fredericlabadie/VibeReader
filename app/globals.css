@@ -155,3 +155,61 @@ a { color: inherit; }
     animation: none !important;
   }
 }
+
+/* ── Mobile responsive (< 720px) ────────────────────────────────────────── */
+@media (max-width: 720px) {
+  /* Result tracklist — single column */
+  .vr-tracklist-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Book stack — single column */
+  .vr-book-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Archive grid — 2 columns */
+  .vr-archive-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Hide cassette cards on mobile results */
+  .vr-cassette-card-col {
+    display: none !important;
+  }
+
+  /* Tighten result padding */
+  .vr-result-hero {
+    padding: 24px 22px 0 !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Result tracklist padding */
+  .vr-tracklist {
+    padding: 24px 22px 16px !important;
+  }
+
+  /* Reroll strip */
+  .vr-reroll {
+    margin: 8px 22px 0 !important;
+  }
+
+  /* Loading screen */
+  .vr-loading-grid {
+    grid-template-columns: 1fr !important;
+    padding: 60px 22px 0 !important;
+  }
+  .vr-loading-deck {
+    display: none !important;
+  }
+
+  /* Disambig */
+  .vr-disambig-grid {
+    grid-template-columns: 1fr !important;
+    padding: 28px 22px !important;
+    gap: 32px !important;
+  }
+  .vr-disambig-left {
+    display: none !important;
+  }
+}
