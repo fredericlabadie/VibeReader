@@ -32,11 +32,45 @@ function spotifySearchUrl(q: string) {
 function openLibraryUrl(title: string, author: string) {
   return `https://openlibrary.org/search?q=${encodeURIComponent(`${title} ${author}`)}`;
 }
+function goodreadsUrl(title: string, author: string) {
+  return `https://www.goodreads.com/search?q=${encodeURIComponent(`${title} ${author}`)}`;
+}
 function worldcatUrl(title: string, author: string) {
   return `https://worldcat.org/search?q=${encodeURIComponent(`${title} ${author}`)}`;
 }
 function bookshopUrl(title: string) {
   return `https://bookshop.org/search?keywords=${encodeURIComponent(title)}`;
+}
+
+
+// ── Spotify PKCE helpers ──────────────────────────────────────────────────
+function generateVerifier(): string {
+  const arr = new Uint8Array(64);
+  crypto.getRandomValues(arr);
+  return btoa(String.fromCharCode(...arr)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+}
+async function generateChallenge(verifier: string): Promise<string> {
+  const data = new TextEncoder().encode(verifier);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+}
+async function startSpotifyAuth(songs: Array<{title:string;artist:string}>, playlistName: string, bookTitle: string) {
+  const clientId = process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID;
+  if (!clientId) { alert("Spotify export is not configured on this deployment."); return; }
+  const verifier = generateVerifier();
+  const challenge = await generateChallenge(verifier);
+  sessionStorage.setItem("vr_pkce_verifier", verifier);
+  sessionStorage.setItem("vr_pending_mix", JSON.stringify({ songs, playlistName, bookTitle }));
+  const params = new URLSearchParams({
+    client_id: clientId,
+    response_type: "code",
+    redirect_uri: `${window.location.origin}/spotify-callback`,
+    scope: "playlist-modify-public playlist-modify-private",
+    state: Math.random().toString(36).slice(2),
+    code_challenge: challenge,
+    code_challenge_method: "S256",
+  });
+  window.location.href = `https://accounts.spotify.com/authorize?${params}`;
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -539,6 +573,10 @@ function SongResultScreen({ result, bookTitle, bookAuthor, onBack, onReroll }: {
               style={{ padding: "13px 18px", background: "transparent", color: P.ink, fontFamily: F.mono, fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase", border: `2px solid ${P.ink}`, cursor: "pointer" }}>
               save card ↓
             </button>
+            <button onClick={() => startSpotifyAuth(result.songs, result.songListName, bookTitle)}
+              style={{ padding: "13px 20px", background: "#1DB954", color: "#000", fontFamily: F.display, fontStyle: "italic", fontSize: 17, fontWeight: 700, border: `2px solid ${P.ink}`, boxShadow: `4px 4px 0 ${P.ink}`, cursor: "pointer" }}>
+              + save to spotify
+            </button>
           </div>
           <div style={{ marginTop: 8, fontFamily: F.mono, fontSize: 9, color: P.fade, letterSpacing: "0.06em" }}>opens search · queue is on you</div>
         </div>
@@ -693,8 +731,8 @@ function BookResultScreen({ result, songTitle, songArtist, digestSummary, onBack
                 <div style={{ fontFamily: F.mono, fontSize: 11, color: P.ink2, marginTop: 6, letterSpacing: "0.05em" }}>by <span style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>{b.author}</span></div>
                 <div style={{ fontFamily: F.serif, fontStyle: "italic", fontSize: 13, color: P.ink2, marginTop: 10, lineHeight: 1.5 }}>{b.whyItFits}</div>
                 <div style={{ display: "flex", gap: 8, marginTop: 12, fontFamily: F.mono, fontSize: 10, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-                  <a href={worldcatUrl(b.title, b.author)} target="_blank" rel="noopener noreferrer"
-                    style={{ padding: "3px 10px", border: `1.5px solid ${P.ink}`, color: P.ink, textDecoration: "none" }}>library ↗</a>
+                  <a href={goodreadsUrl(b.title, b.author)} target="_blank" rel="noopener noreferrer"
+                    style={{ padding: "3px 10px", border: `1.5px solid ${P.ink}`, color: P.ink, textDecoration: "none" }}>goodreads ↗</a>
                   <a href={bookshopUrl(b.title)} target="_blank" rel="noopener noreferrer"
                     style={{ padding: "3px 10px", border: `1.5px solid ${P.ink}`, color: P.ink, textDecoration: "none" }}>bookshop ↗</a>
                 </div>
