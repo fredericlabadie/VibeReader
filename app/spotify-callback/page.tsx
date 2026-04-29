@@ -87,7 +87,7 @@ function CallbackInner() {
         setStatus("error");
         setMessage(err.message);
       });
-  }, []);
+  }, [searchParams]);
 
   if (status === "done") {
     return (
