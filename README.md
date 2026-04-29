@@ -2,7 +2,6 @@
 
 Book-to-music and music-to-book recommendations powered by Claude.
 
-<!-- SCREENSHOT: Drop a 1400px wide screenshot of the main UI with a result loaded — either book→songs or song→books, whichever looks more complete. Filename: screenshot.png -->
 ![VibeReader](./Screenshot.png)
 
 
@@ -31,7 +30,8 @@ Enter a track title and artist, or paste a Spotify URL. Claude reads the sonic a
 ## Stack
 
 - **Next.js 14** (App Router) + TypeScript
-- **Anthropic claude-sonnet-4-5** — all recommendation calls
+- **Anthropic claude-sonnet-4-5** — creative recommendation calls
+- **Anthropic claude-haiku-4-5** — fast author disambiguation
 - **Spotify Web API** (optional) — pulls audio features and track metadata from URLs
 - **Vercel** — deployment
 

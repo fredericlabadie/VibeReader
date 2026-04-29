@@ -214,3 +214,33 @@ a { color: inherit; }
     display: none !important;
   }
 }
+
+/* ── Accessibility — focus styles for keyboard nav ────────────────────────── */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+
+/* Skip link for keyboard users */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 8px;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 8px 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: top 0.1s;
+  z-index: 1000;
+}
+.skip-link:focus {
+  top: 8px;
+}

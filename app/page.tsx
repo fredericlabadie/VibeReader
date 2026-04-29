@@ -50,7 +50,14 @@ async function generateChallenge(verifier: string): Promise<string> {
 }
 async function startSpotifyAuth(songs: Array<{title:string;artist:string}>, playlistName: string, bookTitle: string) {
   const clientId = process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID;
-  if (!clientId) { alert("Spotify export is not configured on this deployment."); return; }
+  if (!clientId) {
+    const msg = document.createElement("div");
+    msg.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#161410;color:#efe7d6;padding:12px 20px;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.08em;z-index:9999;border:1.5px solid #d3411e";
+    msg.textContent = "SPOTIFY NOT CONFIGURED · set NEXT_PUBLIC_SPOTIFY_CLIENT_ID to enable playlist export";
+    document.body.appendChild(msg);
+    setTimeout(() => msg.remove(), 5000);
+    return;
+  }
   const verifier = generateVerifier();
   const challenge = await generateChallenge(verifier);
   const state = Math.random().toString(36).slice(2);
@@ -59,7 +66,12 @@ async function startSpotifyAuth(songs: Array<{title:string;artist:string}>, play
     sessionStorage.setItem("vr_pkce_state", state);
     sessionStorage.setItem("vr_pending_mix", JSON.stringify({ songs, playlistName, bookTitle }));
   } catch {
-    alert("Session storage is blocked. Try disabling private browsing mode to export playlists.");
+    // Graceful fallback — show inline message rather than alert()
+    const msg = document.createElement("div");
+    msg.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#161410;color:#efe7d6;padding:12px 20px;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:0.08em;z-index:9999;border:1.5px solid #d3411e";
+    msg.textContent = "SESSION STORAGE BLOCKED · try a regular (non-private) browser window to export playlists";
+    document.body.appendChild(msg);
+    setTimeout(() => msg.remove(), 5000);
     return;
   }
   const params = new URLSearchParams({
@@ -341,14 +353,22 @@ function ErrorScreenTapeJam({ errorMsg, onBack, onRetry }: { errorMsg: string; o
 }
 
 // ── Loading screen ────────────────────────────────────────────────────────
-const LOADING_STAGES = [
+const BOOK_LOADING_STAGES = [
   "reading the book",
   "pulling at threads",
   "auditioning songs",
   "sequencing side a",
   "naming the mix",
 ];
-function LoadingScreen({ book, onBack }: { book: string; onBack: () => void }) {
+const SONG_LOADING_STAGES = [
+  "reading the song",
+  "pulling at threads",
+  "surfacing moods",
+  "finding the shelf",
+  "placing the books",
+];
+function LoadingScreen({ book, onBack, mode = "book" }: { book: string; onBack: () => void; mode?: "book" | "song" }) {
+  const LOADING_STAGES = mode === "song" ? SONG_LOADING_STAGES : BOOK_LOADING_STAGES;
   const [step, setStep] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setStep(s => Math.min(s + 1, LOADING_STAGES.length - 1)), 1400);
@@ -413,7 +433,7 @@ function LoadingScreen({ book, onBack }: { book: string; onBack: () => void }) {
               </div>
             </div>
             <div style={{ marginTop: 16, fontFamily: F.display, fontStyle: "italic", fontWeight: 600, fontSize: 20, color: P.paper, letterSpacing: "-0.01em" }}>
-              for <em style={{ color: P.yellow }}>{book || "your book"}</em>
+              {mode === "song" ? "for" : "for"} <em style={{ color: P.yellow }}>{book || (mode === "song" ? "your song" : "your book")}</em>
             </div>
           </div>
         </div>
@@ -819,10 +839,13 @@ export default function Home() {
         setLastBookTitle(bookTitle); setLastBookAuthor(bookAuthor);
         setBookSongs(data.result);
       } else {
-        setLastSongTitle(musicInputMode === "text" ? musicTitle : "song");
-        setLastSongArtist(musicInputMode === "text" ? musicArtist : "");
-        setSongToBooks(data.result);
         const d = data.digest as any;
+        // Use the real track name from the Spotify digest when available
+        const resolvedTitle = musicInputMode === "text" ? musicTitle : (d?.label?.split(" — ")[1]?.trim() || d?.label?.trim() || "song");
+        const resolvedArtist = musicInputMode === "text" ? musicArtist : (d?.label?.split(" — ")[0]?.trim() || "");
+        setLastSongTitle(resolvedTitle);
+        setLastSongArtist(resolvedArtist);
+        setSongToBooks(data.result);
         if (d?.label) setDigestSummary(`${d.label} · mood: ${d.mood?.moodLabel ?? "—"}`);
         else setDigestSummary("using song title + artist from your text (no spotify audio data).");
       }
@@ -870,7 +893,7 @@ export default function Home() {
   // ── Result screens ──────────────────────────────────────────────────────
   if (busy) {
     const loadingLabel = mode === "book_to_songs" ? bookTitle : (musicInputMode === "text" ? musicTitle : "your song");
-    return <LoadingScreen book={loadingLabel} onBack={() => { setBusy(false); reset(); }} />;
+    return <LoadingScreen book={loadingLabel} mode={mode === "book_to_songs" ? "book" : "song"} onBack={() => { setBusy(false); reset(); }} />;
   }
 
   if (bookSongs) {
@@ -958,11 +981,11 @@ export default function Home() {
           {/* Mode toggle */}
           <div style={{ background: P.paperDark, border: `2px solid ${P.ink}`, padding: 6, display: "flex" }}>
             <button onClick={() => { setMode("book_to_songs"); setError(""); }} disabled={busy}
-              style={{ flex: 1, padding: "13px 10px", background: mode === "book_to_songs" ? P.ink : "transparent", color: mode === "book_to_songs" ? P.paper : P.ink, fontFamily: F.display, fontSize: 20, fontWeight: 600, fontStyle: "italic", border: "none", cursor: "pointer" }}>
+              aria-pressed={mode === "book_to_songs"} style={{ flex: 1, padding: "13px 10px", background: mode === "book_to_songs" ? P.ink : "transparent", color: mode === "book_to_songs" ? P.paper : P.ink, fontFamily: F.display, fontSize: 20, fontWeight: 600, fontStyle: "italic", border: "none", cursor: "pointer" }}>
               book → songs
             </button>
             <button onClick={() => { setMode("song_to_books"); setError(""); }} disabled={busy}
-              style={{ flex: 1, padding: "13px 10px", background: mode === "song_to_books" ? P.ink : "transparent", color: mode === "song_to_books" ? P.paper : P.ink, fontFamily: F.display, fontSize: 20, fontWeight: 600, fontStyle: "italic", border: "none", cursor: "pointer" }}>
+              aria-pressed={mode === "song_to_books"} style={{ flex: 1, padding: "13px 10px", background: mode === "song_to_books" ? P.ink : "transparent", color: mode === "song_to_books" ? P.paper : P.ink, fontFamily: F.display, fontSize: 20, fontWeight: 600, fontStyle: "italic", border: "none", cursor: "pointer" }}>
               song → books
             </button>
           </div>
