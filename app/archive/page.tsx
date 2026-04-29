@@ -96,7 +96,7 @@ export default function ArchivePage() {
           <span style={{ fontStyle: "italic", fontWeight: 400, color: P.red }}>catalog.</span>
         </h1>
         <p style={{ fontFamily: F.serif, fontStyle: "italic", fontSize: 18, lineHeight: 1.5, color: P.ink2, marginTop: 20, maxWidth: 640 }}>
-          every mix anyone's made, in chronological order. names are real, links are permanent, anyone can listen. nothing is private here — that's the deal.
+          every mix anyone&apos;s made, in chronological order. names are real, links are permanent, anyone can listen. nothing is private here — that&apos;s the deal.
         </p>
 
         {/* Filter bar */}

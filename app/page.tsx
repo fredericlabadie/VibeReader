@@ -246,7 +246,7 @@ function ErrorScreenSpotify({ url, onBack }: { url: string; onBack: () => void }
         paste a track link →
       </button>
       <p style={{ marginTop: 12, fontFamily: F.serif, fontStyle: "italic", fontSize: 13, color: P.fade }}>
-        tip: share → copy link from the <em>song</em> page on Spotify, not the album.
+        tip: share → copy link from the song page on Spotify, not the album.
       </p>
     </div>
   );
@@ -268,7 +268,7 @@ function ErrorScreenTapeJam({ errorMsg, onBack, onRetry }: { errorMsg: string; o
         the reels<br /><em style={{ fontWeight: 400, color: P.red }}>got tangled.</em>
       </h2>
       <p style={{ fontFamily: F.serif, fontStyle: "italic", fontSize: 17, lineHeight: 1.55, color: P.ink2, marginTop: 16, maxWidth: 480 }}>
-        claude didn't come back this time. could be the title's too obscure, the API's having a moment, or your connection is gauzy.
+        claude didn&apos;t come back this time. could be the title&apos;s too obscure, the API&apos;s having a moment, or your connection is gauzy.
       </p>
 
       <div style={{ marginTop: 20, padding: 14, background: P.paperDark, border: `1.5px solid ${P.ink}`, fontFamily: F.mono, fontSize: 11, color: P.ink2, letterSpacing: "0.04em", maxWidth: 520 }}>
@@ -411,7 +411,7 @@ function DisambigScreen({ query, candidates, busy, onPick, onBack }: {
             </span>
           </h1>
           <p style={{ fontFamily: F.serif, fontStyle: "italic", fontSize: 18, lineHeight: 1.5, color: P.ink2, marginTop: 22, maxWidth: 540 }}>
-            point at the one you mean and we'll mix it. if none of these are it, retype with the author next to the title.
+            point at the one you mean and we&apos;ll mix it. if none of these are it, retype with the author next to the title.
           </p>
           <div style={{ marginTop: 24, padding: 16, background: P.paperDark, border: `1.5px dashed ${P.ink}55`, fontFamily: F.mono, fontSize: 11, color: P.ink2, letterSpacing: "0.04em" }}>
             <span style={{ color: P.fade, textTransform: "uppercase", letterSpacing: "0.16em", fontSize: 10 }}>shortcut · </span>
@@ -597,7 +597,7 @@ function SongResultScreen({ result, bookTitle, bookAuthor, onBack, onReroll }: {
       {/* Bottom reroll strip */}
       <div className="vr-reroll" style={{ margin: "8px 56px 0", padding: "22px 28px", background: P.ink, color: P.paper, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
         <div style={{ fontFamily: F.serif, fontStyle: "italic", fontSize: 16, lineHeight: 1.45, maxWidth: 620 }}>
-          want a different angle? add a vibe note like <em style={{ color: P.yellow }}>"more strings, less voice"</em> or <em style={{ color: P.yellow }}>"latin only"</em> and reroll.
+          want a different angle? add a vibe note like <em style={{ color: P.yellow }}>&ldquo;more strings, less voice&rdquo;</em> or <em style={{ color: P.yellow }}>&ldquo;latin only&rdquo;</em> and reroll.
         </div>
         <div style={{ display: "flex", gap: 10 }}>
           <button onClick={() => setShowReroll(true)}
@@ -868,7 +868,7 @@ export default function Home() {
             </span>
           </h1>
           <p style={{ fontFamily: F.serif, fontStyle: "italic", fontSize: 20, lineHeight: 1.5, color: P.ink, marginTop: 26, maxWidth: 540, fontWeight: 400 }}>
-            tell me what you're reading; i'll hand you a list of songs. tell me what you're playing; i'll hand you a stack of novels. not a review—a starting place.
+            tell me what you&apos;re reading; i&apos;ll hand you a list of songs. tell me what you&apos;re playing; i&apos;ll hand you a stack of novels. not a review—a starting place.
           </p>
 
           {/* Recently mixed — hidden on mobile */}
