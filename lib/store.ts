@@ -1,23 +1,29 @@
-// lib/store.ts — Redis persistence via Vercel's native Redis integration (node-redis)
+// lib/store.ts — Redis Cloud persistence for mixes
 //
-// Env var set automatically by Vercel when you connect Redis from the Storage tab:
-//   REDIS_URL
+// Env vars — set these in Vercel dashboard → Settings → Environment Variables:
+//   REDIS_URL  (full connection string, e.g. redis://:password@host:port)
 //
-// node-redis v5 uses async connect/disconnect. We create a client per call
-// (safe for serverless — each invocation is short-lived).
+// From your Redis Cloud dashboard:
+//   Host: redis-11965.crce285.us-east-1-4.ec2.cloud.redislabs.com
+//   Port: 11965
+//   Password: find under Security → Default user → "Copy password"
+//
+// Format: redis://:PASSWORD@redis-11965.crce285.us-east-1-4.ec2.cloud.redislabs.com:11965
 
 import { createClient } from "redis";
 
-async function withRedis<T>(fn: (r: ReturnType<typeof createClient>) => Promise<T>): Promise<T> {
+let _client: ReturnType<typeof createClient> | null = null;
+
+async function getClient() {
   const url = process.env.REDIS_URL;
   if (!url) throw new Error("REDIS_URL not configured");
-  const redis = createClient({ url });
-  await redis.connect();
-  try {
-    return await fn(redis);
-  } finally {
-    await redis.disconnect();
-  }
+
+  if (_client && _client.isOpen) return _client;
+
+  _client = createClient({ url });
+  _client.on("error", () => { _client = null; });
+  await _client.connect();
+  return _client;
 }
 
 export type StoredMix = {
@@ -32,7 +38,7 @@ export type StoredMix = {
   createdAt: number;
 };
 
-// ── Slug ─────────────────────────────────────────────────────────────────
+// ── Slug ──────────────────────────────────────────────────────────────────
 
 function makeSlug(name: string): string {
   const base = name
@@ -49,6 +55,7 @@ function makeSlug(name: string): string {
 // ── Write ─────────────────────────────────────────────────────────────────
 
 export async function saveMix(data: Omit<StoredMix, "slug" | "createdAt">): Promise<string> {
+  const redis = await getClient();
   const name =
     data.kind === "book→songs"
       ? (data.result as any).songListName ?? "mix"
@@ -56,14 +63,11 @@ export async function saveMix(data: Omit<StoredMix, "slug" | "createdAt">): Prom
 
   const slug = makeSlug(name);
   const mix: StoredMix = { ...data, slug, createdAt: Date.now() };
-  const ONE_YEAR = 60 * 60 * 24 * 365;
 
-  await withRedis(async (r) => {
-    await r.set(`mix:${slug}`, JSON.stringify(mix), { EX: ONE_YEAR });
-    await r.lPush("mixes:recent", slug);
-    await r.lTrim("mixes:recent", 0, 99);
-  });
-
+  const EX = 60 * 60 * 24 * 365; // 1 year
+  await redis.set(`mix:${slug}`, JSON.stringify(mix), { EX });
+  await redis.lPush("mixes:recent", slug);
+  await redis.lTrim("mixes:recent", 0, 99); // keep 100 most recent
   return slug;
 }
 
@@ -71,11 +75,10 @@ export async function saveMix(data: Omit<StoredMix, "slug" | "createdAt">): Prom
 
 export async function getMix(slug: string): Promise<StoredMix | null> {
   try {
-    return await withRedis(async (r) => {
-      const raw = await r.get(`mix:${slug}`);
-      if (!raw) return null;
-      return JSON.parse(raw) as StoredMix;
-    });
+    const redis = await getClient();
+    const raw = await redis.get(`mix:${slug}`);
+    if (!raw) return null;
+    return JSON.parse(raw) as StoredMix;
   } catch {
     return null;
   }
@@ -83,14 +86,11 @@ export async function getMix(slug: string): Promise<StoredMix | null> {
 
 export async function getRecentMixes(count = 24): Promise<StoredMix[]> {
   try {
-    return await withRedis(async (r) => {
-      const slugs = await r.lRange("mixes:recent", 0, count - 1);
-      if (!slugs?.length) return [];
-      const raws = await Promise.all(slugs.map(s => r.get(`mix:${s}`)));
-      return raws
-        .filter((v): v is string => v !== null)
-        .map(v => JSON.parse(v) as StoredMix);
-    });
+    const redis = await getClient();
+    const slugs = await redis.lRange("mixes:recent", 0, count - 1);
+    if (!slugs?.length) return [];
+    const mixes = await Promise.all(slugs.map(s => getMix(s)));
+    return mixes.filter((m): m is StoredMix => m !== null);
   } catch {
     return [];
   }
