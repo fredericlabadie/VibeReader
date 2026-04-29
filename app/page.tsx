@@ -226,7 +226,7 @@ function ErrorScreenSpotify({ url, onBack }: { url: string; onBack: () => void }
         that link goes to<br />an <em style={{ fontWeight: 400, color: P.red }}>{linkType}</em>.
       </h2>
       <p style={{ fontFamily: F.serif, fontStyle: "italic", fontSize: 17, lineHeight: 1.55, color: P.ink2, marginTop: 16, maxWidth: 460 }}>
-        VibeReader needs a <em>single track</em> to read the vibe — one song at a time. Albums and playlists won't work yet.
+        VibeReader needs a <em>single track</em> to read the vibe — one song at a time. Albums and playlists won&apos;t work yet.
       </p>
 
       <div style={{ marginTop: 22, padding: 16, background: P.paperDark, border: `1.5px solid ${P.ink}`, maxWidth: 520 }}>
@@ -343,7 +343,7 @@ function LoadingScreen({ book, onBack }: { book: string; onBack: () => void }) {
             ))}
           </div>
           <div style={{ marginTop: 28, fontFamily: F.serif, fontStyle: "italic", fontSize: 15, color: P.fade, lineHeight: 1.5 }}>
-            usually about <span style={{ fontFamily: F.mono, fontSize: 13, color: P.ink, fontStyle: "normal" }}>15 sec</span> · don't refresh, the tape will eat itself
+            usually about <span style={{ fontFamily: F.mono, fontSize: 13, color: P.ink, fontStyle: "normal" }}>15 sec</span> · don&apos;t refresh, the tape will eat itself
           </div>
         </div>
 
