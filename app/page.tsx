@@ -47,12 +47,12 @@ function bookshopUrl(title: string) {
 function generateVerifier(): string {
   const arr = new Uint8Array(64);
   crypto.getRandomValues(arr);
-  return btoa(String.fromCharCode(...arr)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+  return btoa(String.fromCharCode(...Array.from(arr))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
 }
 async function generateChallenge(verifier: string): Promise<string> {
   const data = new TextEncoder().encode(verifier);
   const digest = await crypto.subtle.digest("SHA-256", data);
-  return btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+  return btoa(String.fromCharCode(...Array.from(new Uint8Array(digest)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
 }
 async function startSpotifyAuth(songs: Array<{title:string;artist:string}>, playlistName: string, bookTitle: string) {
   const clientId = process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID;
