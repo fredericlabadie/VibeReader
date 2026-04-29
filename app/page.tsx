@@ -1005,7 +1005,7 @@ export default function Home() {
               {busy ? "mixing…" : "give me the mix →"}
             </button>
             <div style={{ marginTop: 10, fontFamily: F.mono, fontSize: 10, color: P.fade, textAlign: "center", letterSpacing: "0.06em" }}>
-              {mode === "book_to_songs" ? "10–16 songs · ai-drafted · double-check titles" : "6+ books · ai-drafted · double-check titles"}
+              {mode === "book_to_songs" ? "12 songs · ai-drafted · double-check titles" : "8 books · ai-drafted · double-check titles"}
             </div>
           </div>
 
@@ -1021,7 +1021,7 @@ export default function Home() {
       {/* Bottom rail — hidden on mobile */}
       {!isMobile && <div style={{ marginTop: 60, padding: "18px 56px", borderTop: `2px solid ${P.ink}`, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 18, alignItems: "flex-start" }}>
         {[
-          { n: "01", h: "14 tracks, named.", s: "every mix gets a side-name and a rationale. the mix has a point of view." },
+          { n: "01", h: "12 tracks, named.", s: "every mix gets a side-name and a rationale. the mix has a point of view." },
           { n: "02", h: "two ways in.", s: "book → songs, or song → books. one button rules them both." },
           { n: "03", h: "no signup, no save.", s: "what you make is yours. share the link, screenshot it, paste the text." },
           { n: "04", h: "made with claude.", s: "a starting place, not a recommendation engine. always double-check titles." },
