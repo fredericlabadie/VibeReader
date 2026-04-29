@@ -112,7 +112,7 @@ export default function ArchivePage() {
       </div>
 
       {/* Grid */}
-      <div style={{ padding: "32px 56px 80px", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 24 }}>
+      <div className="vr-archive-grid" style={{ padding: "32px 56px 80px", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 24 }}>
         {filtered.map((m, i) => (
           <a key={m.id} href="/" className="vr-mix-card">
             <div style={{ background: P.paperDark, border: `2px solid ${P.ink}`, padding: 18, boxShadow: `4px 4px 0 ${P.ink}`, minHeight: 300, display: "flex", flexDirection: "column" }}>

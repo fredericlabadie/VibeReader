@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 
 // ── Design tokens ─────────────────────────────────────────────────────────
 const P = {
@@ -777,7 +777,7 @@ export default function Home() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Something went wrong";
       setError(msg);
-      if (/album|playlist|artist|non.track/i.test(msg)) setErrorType("spotify_album");
+      if (/album|playlist|artist|non.track|only accepts.*track|track.*link/i.test(msg)) setErrorType("spotify_album");
       else setErrorType("tape_jam");
     } finally {
       setBusy(false);
@@ -813,8 +813,9 @@ export default function Home() {
   }
 
   // ── Result screens ──────────────────────────────────────────────────────
-  if (busy && mode === "book_to_songs") {
-    return <LoadingScreen book={bookTitle} onBack={() => { setBusy(false); reset(); }} />;
+  if (busy) {
+    const loadingLabel = mode === "book_to_songs" ? bookTitle : (musicInputMode === "text" ? musicTitle : "your song");
+    return <LoadingScreen book={loadingLabel} onBack={() => { setBusy(false); reset(); }} />;
   }
 
   if (bookSongs) {
