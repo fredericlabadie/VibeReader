@@ -794,8 +794,11 @@ export default function Home() {
         setLastBookTitle(c.title); setLastBookAuthor(c.author);
         setBookSongs(data.result);
       }
-    } catch (e) { setError(e instanceof Error ? e.message : "Something went wrong"); }
-    finally { setBusy(false); }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Something went wrong";
+      setError(msg);
+      setErrorType("tape_jam");
+    } finally { setBusy(false); }
   }
 
   function reset() {
@@ -908,7 +911,7 @@ export default function Home() {
             {mode === "book_to_songs" ? (
               <>
                 <ZineField label="book title" value={bookTitle} onChange={setBookTitle} placeholder="e.g. Mexican Gothic" large disabled={busy} />
-                <ZineField label="author (optional — i'll ask if i'm not sure)" value={bookAuthor} onChange={setBookAuthor} disabled={busy} />
+                {!isMobile && <ZineField label="author (optional — i'll ask if i'm not sure)" value={bookAuthor} onChange={setBookAuthor} disabled={busy} />}
                 <ZineField label="vibe notes" value={bookNotes} onChange={setBookNotes} placeholder="what's the part that's getting under your skin?" textarea disabled={busy} />
               </>
             ) : (

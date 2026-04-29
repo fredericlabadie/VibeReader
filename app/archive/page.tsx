@@ -114,7 +114,7 @@ export default function ArchivePage() {
       {/* Grid */}
       <div className="vr-archive-grid" style={{ padding: "32px 56px 80px", display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 24 }}>
         {filtered.map((m, i) => (
-          <a key={m.id} href="/" className="vr-mix-card">
+          <div key={m.id} className="vr-mix-card" style={{ cursor: "default" }}>
             <div style={{ background: P.paperDark, border: `2px solid ${P.ink}`, padding: 18, boxShadow: `4px 4px 0 ${P.ink}`, minHeight: 300, display: "flex", flexDirection: "column" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
                 <span style={{ fontFamily: F.mono, fontSize: 9, letterSpacing: "0.16em", color: P.fade, textTransform: "uppercase" }}>· issue {m.issue}</span>
@@ -129,10 +129,10 @@ export default function ArchivePage() {
               </div>
               <div style={{ marginTop: "auto", paddingTop: 12, display: "flex", justifyContent: "space-between", fontFamily: F.mono, fontSize: 9, letterSpacing: "0.1em", color: P.fade, textTransform: "uppercase" }}>
                 <span>{m.when}</span>
-                <span style={{ color: P.ink }}>open →</span>
+                <span style={{ color: P.fade }}>sample</span>
               </div>
             </div>
-          </a>
+          </div>
         ))}
       </div>
 
