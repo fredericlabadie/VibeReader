@@ -32,9 +32,6 @@ function spotifySearchUrl(q: string) {
 function goodreadsUrl(title: string, author: string) {
   return `https://www.goodreads.com/search?q=${encodeURIComponent(`${title} ${author}`)}`;
 }
-function worldcatUrl(title: string, author: string) {
-  return `https://worldcat.org/search?q=${encodeURIComponent(`${title} ${author}`)}`;
-}
 function bookshopUrl(title: string) {
   return `https://bookshop.org/search?keywords=${encodeURIComponent(title)}`;
 }
@@ -354,7 +351,7 @@ const LOADING_STAGES = [
 function LoadingScreen({ book, onBack }: { book: string; onBack: () => void }) {
   const [step, setStep] = useState(0);
   useEffect(() => {
-    const id = setInterval(() => setStep(s => (s + 1) % LOADING_STAGES.length), 1400);
+    const id = setInterval(() => setStep(s => Math.min(s + 1, LOADING_STAGES.length - 1)), 1400);
     return () => clearInterval(id);
   }, []);
 
@@ -557,10 +554,13 @@ function SongResultScreen({ result, bookTitle, bookAuthor, onBack, onReroll }: {
           </div>
           {/* Actions */}
           <div style={{ marginTop: 28, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <a href={spotifySearchUrl(result.songListName)} target="_blank" rel="noopener noreferrer"
-              style={{ display: "inline-block", padding: "13px 20px", background: P.ink, color: P.paper, fontFamily: F.display, fontStyle: "italic", fontSize: 17, fontWeight: 700, border: `2px solid ${P.ink}`, boxShadow: `4px 4px 0 ${P.red}`, textDecoration: "none" }}>
-              ↗ open in spotify
-            </a>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <a href={spotifySearchUrl(result.songListName)} target="_blank" rel="noopener noreferrer"
+                style={{ display: "inline-block", padding: "13px 20px", background: P.ink, color: P.paper, fontFamily: F.display, fontStyle: "italic", fontSize: 17, fontWeight: 700, border: `2px solid ${P.ink}`, boxShadow: `4px 4px 0 ${P.red}`, textDecoration: "none" }}>
+                ↗ open in spotify
+              </a>
+              <span style={{ fontFamily: F.mono, fontSize: 9, color: P.fade, letterSpacing: "0.06em" }}>opens search · queue is on you</span>
+            </div>
             <button onClick={() => setShowReroll(v => !v)} className="vr-cta-outline"
               style={{ padding: "13px 20px", background: "transparent", color: P.ink, fontFamily: F.display, fontStyle: "italic", fontSize: 17, fontWeight: 600, border: `2px solid ${P.ink}`, cursor: "pointer" }}>
               ↻ reroll with notes
@@ -582,7 +582,6 @@ function SongResultScreen({ result, bookTitle, bookAuthor, onBack, onReroll }: {
               + save to spotify
             </button>
           </div>
-          <div style={{ marginTop: 8, fontFamily: F.mono, fontSize: 9, color: P.fade, letterSpacing: "0.06em" }}>opens search · queue is on you</div>
         </div>
 
         {/* Cassette card */}
@@ -898,10 +897,10 @@ export default function Home() {
         </div>
         <div style={{ display: "flex", gap: 18, fontFamily: F.mono, fontSize: 11, letterSpacing: "0.1em", color: P.ink, textTransform: "uppercase", alignItems: "center" }}>
           <a href="/archive" style={{ cursor: "pointer", opacity: 0.7, textDecoration: "none", color: P.ink, fontFamily: F.mono, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase" }}>archive</a>
-          <span style={{ cursor: "pointer", opacity: 0.5 }}>about</span>
+          <a href="https://github.com/fredericlabadie/VibeReader#readme" target="_blank" rel="noopener noreferrer" style={{ cursor: "pointer", opacity: 0.7, textDecoration: "none", color: P.ink, fontFamily: F.mono, fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase" }}>about</a>
           <a href="https://github.com/fredericlabadie/VibeReader" target="_blank" rel="noopener noreferrer"
             style={{ textDecoration: "none", color: P.ink }}>github ↗</a>
-          <span style={{ padding: "6px 14px", background: P.ink, color: P.paper, fontFamily: F.mono, fontSize: 10, letterSpacing: "0.12em" }}>start ↓</span>
+          <button onClick={() => document.querySelector("input")?.focus()} style={{ padding: "6px 14px", background: P.ink, color: P.paper, fontFamily: F.mono, fontSize: 10, letterSpacing: "0.12em", border: "none", cursor: "pointer" }}>start ↓</button>
         </div>
       </div>
 
@@ -911,17 +910,26 @@ export default function Home() {
       </div>
 
       {/* Main two-column */}
-      <div style={{ padding: "30px 56px 0", display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 56, alignItems: "flex-start" }}>
+      <div style={{ padding: isMobile ? "20px 22px 0" : "30px 56px 0", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.5fr 1fr", gap: isMobile ? 32 : 56, alignItems: "flex-start" }}>
         {/* Hero */}
         <div>
           <div style={{ fontFamily: F.mono, fontSize: 11, letterSpacing: "0.18em", color: P.red, textTransform: "uppercase", marginBottom: 14 }}>two lookups · one vibe</div>
           <h1 style={{ fontFamily: F.display, fontWeight: 700, fontSize: isMobile ? 64 : "clamp(72px, 10vw, 120px)", lineHeight: 0.88, letterSpacing: "-0.035em", color: P.ink }}>
-            what does<br />
-            <span style={{ fontStyle: "italic", fontWeight: 400, color: P.red }}>this book</span><br />
-            <span style={{ position: "relative", display: "inline-block" }}>
-              sound like?
-              <span style={{ position: "absolute", left: -4, right: -4, bottom: 12, height: 14, background: P.yellow, zIndex: -1 }} />
-            </span>
+            {mode === "book_to_songs" ? (
+              <>what does<br />
+              <span style={{ fontStyle: "italic", fontWeight: 400, color: P.red }}>this book</span><br />
+              <span style={{ position: "relative", display: "inline-block" }}>
+                sound like?
+                <span style={{ position: "absolute", left: -4, right: -4, bottom: 12, height: 14, background: P.yellow, zIndex: -1 }} />
+              </span></>
+            ) : (
+              <>if you like<br />
+              <span style={{ fontStyle: "italic", fontWeight: 400, color: P.red }}>this song,</span><br />
+              <span style={{ position: "relative", display: "inline-block" }}>
+                read these.
+                <span style={{ position: "absolute", left: -4, right: -4, bottom: 12, height: 14, background: P.yellow, zIndex: -1 }} />
+              </span></>
+            )}
           </h1>
           <p style={{ fontFamily: F.serif, fontStyle: "italic", fontSize: 20, lineHeight: 1.5, color: P.ink, marginTop: 26, maxWidth: 540, fontWeight: 400 }}>
             tell me what you&apos;re reading; i&apos;ll hand you a list of songs. tell me what you&apos;re playing; i&apos;ll hand you a stack of novels. not a review—a starting place.
