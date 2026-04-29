@@ -20,9 +20,12 @@ async function getClient() {
 
   if (_client && _client.isOpen) return _client;
 
-  _client = createClient({ url });
+  _client = createClient({ url, socket: { connectTimeout: 5000 } });
   _client.on("error", () => { _client = null; });
-  await _client.connect();
+  await Promise.race([
+    _client.connect(),
+    new Promise((_, reject) => setTimeout(() => reject(new Error("Redis connect timeout")), 5000)),
+  ]);
   return _client;
 }
 

@@ -4,7 +4,7 @@
 // Reads the auth code, exchanges for a token, creates the playlist,
 // then redirects back to the home page with the result.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
@@ -27,8 +27,11 @@ function CallbackInner() {
   const [message, setMessage] = useState("");
   const [playlistUrl, setPlaylistUrl] = useState("");
   const [notFound, setNotFound] = useState<string[]>([]);
+  const hasRun = useRef(false); // prevent double-fire in StrictMode
 
   useEffect(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
     const code = searchParams?.get("code");
     const returnedState = searchParams?.get("state");
     const error = searchParams?.get("error");

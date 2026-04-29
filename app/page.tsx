@@ -910,7 +910,7 @@ export default function Home() {
 
   if (bookSongs) {
     return <SongResultScreen result={bookSongs} bookTitle={lastBookTitle} bookAuthor={lastBookAuthor} slug={mixSlug} onBack={reset}
-      onReroll={notes => { setBookSongs(null); run(notes); }} />;
+      onReroll={notes => { setBookSongs(null); setErrorType(null); setError(""); run(notes); }} />;
   }
 
   if (songToBooks) {
