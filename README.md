@@ -3,7 +3,8 @@
 Book-to-music and music-to-book recommendations powered by Claude.
 
 <!-- SCREENSHOT: Drop a 1400px wide screenshot of the main UI with a result loaded — either book→songs or song→books, whichever looks more complete. Filename: screenshot.png -->
-<!-- ![VibeReader](./screenshot.png) -->
+![VibeReader](./screenshot.png)
+
 
 **Live:** [vibereader.fredericlabadie.com](https://vibereader.fredericlabadie.com)
 
