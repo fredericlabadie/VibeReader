@@ -1,19 +1,23 @@
-// lib/store.ts — Upstash Redis persistence for mixes
+// lib/store.ts — Redis persistence via Vercel's native Redis integration (node-redis)
 //
-// Env vars (set automatically when you add an Upstash Redis integration in Vercel):
-//   UPSTASH_REDIS_REST_URL
-//   UPSTASH_REDIS_REST_TOKEN
+// Env var set automatically by Vercel when you connect Redis from the Storage tab:
+//   REDIS_URL
 //
-// To set up: Vercel dashboard → Storage → Browse Marketplace → Upstash Redis
-// Connect the store to your project and Vercel sets the env vars automatically.
+// node-redis v5 uses async connect/disconnect. We create a client per call
+// (safe for serverless — each invocation is short-lived).
 
-import { Redis } from "@upstash/redis";
+import { createClient } from "redis";
 
-function getRedis() {
-  const url   = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) throw new Error("Upstash Redis not configured");
-  return new Redis({ url, token });
+async function withRedis<T>(fn: (r: ReturnType<typeof createClient>) => Promise<T>): Promise<T> {
+  const url = process.env.REDIS_URL;
+  if (!url) throw new Error("REDIS_URL not configured");
+  const redis = createClient({ url });
+  await redis.connect();
+  try {
+    return await fn(redis);
+  } finally {
+    await redis.disconnect();
+  }
 }
 
 export type StoredMix = {
@@ -45,7 +49,6 @@ function makeSlug(name: string): string {
 // ── Write ─────────────────────────────────────────────────────────────────
 
 export async function saveMix(data: Omit<StoredMix, "slug" | "createdAt">): Promise<string> {
-  const redis = getRedis();
   const name =
     data.kind === "book→songs"
       ? (data.result as any).songListName ?? "mix"
@@ -53,10 +56,14 @@ export async function saveMix(data: Omit<StoredMix, "slug" | "createdAt">): Prom
 
   const slug = makeSlug(name);
   const mix: StoredMix = { ...data, slug, createdAt: Date.now() };
+  const ONE_YEAR = 60 * 60 * 24 * 365;
 
-  await redis.set(`mix:${slug}`, mix, { ex: 60 * 60 * 24 * 365 }); // 1-year TTL
-  await redis.lpush("mixes:recent", slug);
-  await redis.ltrim("mixes:recent", 0, 99); // keep 100 most recent
+  await withRedis(async (r) => {
+    await r.set(`mix:${slug}`, JSON.stringify(mix), { EX: ONE_YEAR });
+    await r.lPush("mixes:recent", slug);
+    await r.lTrim("mixes:recent", 0, 99);
+  });
+
   return slug;
 }
 
@@ -64,9 +71,11 @@ export async function saveMix(data: Omit<StoredMix, "slug" | "createdAt">): Prom
 
 export async function getMix(slug: string): Promise<StoredMix | null> {
   try {
-    const redis = getRedis();
-    const raw = await redis.get<StoredMix>(`mix:${slug}`);
-    return raw ?? null;
+    return await withRedis(async (r) => {
+      const raw = await r.get(`mix:${slug}`);
+      if (!raw) return null;
+      return JSON.parse(raw) as StoredMix;
+    });
   } catch {
     return null;
   }
@@ -74,11 +83,14 @@ export async function getMix(slug: string): Promise<StoredMix | null> {
 
 export async function getRecentMixes(count = 24): Promise<StoredMix[]> {
   try {
-    const redis = getRedis();
-    const slugs = await redis.lrange<string>("mixes:recent", 0, count - 1);
-    if (!slugs?.length) return [];
-    const mixes = await Promise.all(slugs.map(s => getMix(s)));
-    return mixes.filter((m): m is StoredMix => m !== null);
+    return await withRedis(async (r) => {
+      const slugs = await r.lRange("mixes:recent", 0, count - 1);
+      if (!slugs?.length) return [];
+      const raws = await Promise.all(slugs.map(s => r.get(`mix:${s}`)));
+      return raws
+        .filter((v): v is string => v !== null)
+        .map(v => JSON.parse(v) as StoredMix);
+    });
   } catch {
     return [];
   }
