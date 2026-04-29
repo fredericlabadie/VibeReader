@@ -517,10 +517,11 @@ function DisambigScreen({ query, candidates, busy, onPick, onBack }: {
 }
 
 // ── Book → Songs result screen ────────────────────────────────────────────
-function SongResultScreen({ result, bookTitle, bookAuthor, onBack, onReroll }: {
+function SongResultScreen({ result, bookTitle, bookAuthor, slug, onBack, onReroll }: {
   result: BookToSongsResult;
   bookTitle: string;
   bookAuthor?: string;
+  slug?: string | null;
   onBack: () => void;
   onReroll: (notes: string) => void;
 }) {
@@ -679,19 +680,21 @@ function SongResultScreen({ result, bookTitle, bookAuthor, onBack, onReroll }: {
 
       {/* Footer */}
       <div style={{ padding: "24px 56px 40px", display: "flex", justifyContent: "space-between", fontFamily: F.mono, fontSize: 10, color: P.fade, letterSpacing: "0.08em", textTransform: "uppercase", flexWrap: "wrap", gap: 8 }}>
-        <span>vibereader · issue 037 · {new Date().getFullYear()}</span>
-        <span>made with claude · always double-check titles</span>
+        <span>vibereader · made with claude</span>
+        {slug ? <a href={`/r/${slug}`} style={{ color: P.ink, textDecoration: "none", letterSpacing: "0.08em" }}>permanent link · /r/{slug}</a> : <span>always double-check titles</span>}
+        <span>always double-check titles</span>
       </div>
     </div>
   );
 }
 
 // ── Song → Books result screen ────────────────────────────────────────────
-function BookResultScreen({ result, songTitle, songArtist, digestSummary, onBack }: {
+function BookResultScreen({ result, songTitle, songArtist, digestSummary, slug, onBack }: {
   result: SongToBooksResult;
   songTitle: string;
   songArtist?: string;
   digestSummary: string | null;
+  slug?: string | null;
   onBack: () => void;
 }) {
   return (
@@ -765,8 +768,13 @@ function BookResultScreen({ result, songTitle, songArtist, digestSummary, onBack
         </div>
       </div>
 
-      <div style={{ padding: "32px 56px 40px" }}>
+      <div style={{ padding: "32px 56px 16px" }}>
         <CassetteSpine side="B" label={`if you like ${songTitle}${songArtist ? ` · ${songArtist}` : ""} · read these · ${result.books.length} books`} />
+      </div>
+      <div style={{ padding: "12px 56px 40px", display: "flex", justifyContent: "space-between", fontFamily: F.mono, fontSize: 10, color: P.fade, letterSpacing: "0.08em", textTransform: "uppercase", flexWrap: "wrap", gap: 8 }}>
+        <span>vibereader · made with claude</span>
+        {slug ? <a href={`/r/${slug}`} style={{ color: P.ink, textDecoration: "none" }}>permanent link · /r/{slug}</a> : <span>always double-check titles</span>}
+        <span>always double-check titles</span>
       </div>
     </div>
   );
@@ -793,6 +801,7 @@ export default function Home() {
   const [bookSongs, setBookSongs] = useState<BookToSongsResult | null>(null);
   const [songToBooks, setSongToBooks] = useState<SongToBooksResult | null>(null);
   const [authorCandidates, setAuthorCandidates] = useState<BookAuthorCandidate[] | null>(null);
+  const [mixSlug, setMixSlug] = useState<string | null>(null);
 
   // Result metadata for result screens
   const [lastBookTitle, setLastBookTitle] = useState("");
@@ -838,6 +847,7 @@ export default function Home() {
         }
         setLastBookTitle(bookTitle); setLastBookAuthor(bookAuthor);
         setBookSongs(data.result);
+        if (data.slug) setMixSlug(data.slug);
       } else {
         const d = data.digest as any;
         // Use the real track name from the Spotify digest when available
@@ -846,6 +856,7 @@ export default function Home() {
         setLastSongTitle(resolvedTitle);
         setLastSongArtist(resolvedArtist);
         setSongToBooks(data.result);
+        if (data.slug) setMixSlug(data.slug);
         if (d?.label) setDigestSummary(`${d.label} · mood: ${d.mood?.moodLabel ?? "—"}`);
         else setDigestSummary("using song title + artist from your text (no spotify audio data).");
       }
@@ -868,6 +879,7 @@ export default function Home() {
       if (data.mode === "book_to_songs" && data.result) {
         setLastBookTitle(c.title); setLastBookAuthor(c.author);
         setBookSongs(data.result);
+        if (data.slug) setMixSlug(data.slug);
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Something went wrong";
@@ -877,7 +889,7 @@ export default function Home() {
   }
 
   function reset() {
-    setBookSongs(null); setSongToBooks(null); setAuthorCandidates(null); setError(""); setDigestSummary(null); setErrorType(null);
+    setBookSongs(null); setSongToBooks(null); setAuthorCandidates(null); setError(""); setDigestSummary(null); setErrorType(null); setMixSlug(null);
   }
 
   const isMobile = useIsMobile();
@@ -897,12 +909,12 @@ export default function Home() {
   }
 
   if (bookSongs) {
-    return <SongResultScreen result={bookSongs} bookTitle={lastBookTitle} bookAuthor={lastBookAuthor} onBack={reset}
+    return <SongResultScreen result={bookSongs} bookTitle={lastBookTitle} bookAuthor={lastBookAuthor} slug={mixSlug} onBack={reset}
       onReroll={notes => { setBookSongs(null); run(notes); }} />;
   }
 
   if (songToBooks) {
-    return <BookResultScreen result={songToBooks} songTitle={lastSongTitle} songArtist={lastSongArtist} digestSummary={digestSummary} onBack={reset} />;
+    return <BookResultScreen result={songToBooks} songTitle={lastSongTitle} songArtist={lastSongArtist} digestSummary={digestSummary} slug={mixSlug} onBack={reset} />;
   }
 
   if (authorCandidates) {

@@ -5,6 +5,7 @@ import {
   recommendBooksFromSongText,
   recommendSongsFromBook,
 } from "@/lib/bookPlaylist";
+import { saveMix } from "@/lib/store";
 import {
   fetchListeningDigestFromSpotifyUrl,
   normalizeSpotifyPaste,
@@ -17,7 +18,6 @@ export const maxDuration = 60;
 
 type Mode = "book_to_songs" | "song_to_books";
 
-// POST /api/recommendations — no auth; deploy behind Vercel or add your own gate if exposing publicly.
 export async function POST(req: Request) {
   const authError = checkApiSecret(req);
   if (authError) return authError;
@@ -65,17 +65,15 @@ export async function POST(req: Request) {
             bookAuthor: c.author,
             bookNotes,
           });
-          return NextResponse.json({ mode, result });
+          const slug = await saveMix({ kind: "book→songs", bookTitle: c.title, bookAuthor: c.author, result: result as any }).catch(() => null);
+          return NextResponse.json({ mode, result, slug });
         }
         return NextResponse.json({ mode, step: "pick_author", candidates });
       }
 
-      const result = await recommendSongsFromBook({
-        bookTitle,
-        bookAuthor,
-        bookNotes,
-      });
-      return NextResponse.json({ mode, result });
+      const result = await recommendSongsFromBook({ bookTitle, bookAuthor, bookNotes });
+      const slug = await saveMix({ kind: "book→songs", bookTitle, bookAuthor, result: result as any }).catch(() => null);
+      return NextResponse.json({ mode, result, slug });
     }
 
     /* song_to_books */
@@ -89,16 +87,17 @@ export async function POST(req: Request) {
       const parsed = parseSpotifyResourceUrl(resolved);
       if (!parsed || parsed.type !== "track") {
         return NextResponse.json(
-          {
-            error:
-              "Song → books only accepts a Spotify **song** (track) link. Album, artist, and playlist links are not supported.",
-          },
+          { error: "Song → books only accepts a Spotify **song** (track) link. Album, artist, and playlist links are not supported." },
           { status: 400 },
         );
       }
       const digest = await fetchListeningDigestFromSpotifyUrl(resolved);
       const result = await recommendBooksFromSongDigest(digest);
-      return NextResponse.json({ mode, digest, result });
+      const digestSummary = `${digest.label} · mood: ${digest.mood?.moodLabel ?? "—"}`;
+      const resolvedArtist = digest.label?.split(" — ")[0]?.trim() ?? "";
+      const resolvedTitle = digest.label?.split(" — ")[1]?.trim() ?? digest.label ?? "";
+      const slug = await saveMix({ kind: "song→books", songTitle: resolvedTitle, songArtist: resolvedArtist, digestSummary, result: result as any }).catch(() => null);
+      return NextResponse.json({ mode, digest, result, slug });
     }
 
     if (!title || !artist) {
@@ -108,12 +107,11 @@ export async function POST(req: Request) {
       );
     }
 
-    const result = await recommendBooksFromSongText({
-      songTitle: title,
-      songArtist: artist,
-      songNotes: songNotes,
-    });
-    return NextResponse.json({ mode, result });
+    const result = await recommendBooksFromSongText({ songTitle: title, songArtist: artist, songNotes });
+    const digestSummary = "using song title + artist from your text (no spotify audio data).";
+    const slug = await saveMix({ kind: "song→books", songTitle: title, songArtist: artist, digestSummary, result: result as any }).catch(() => null);
+    return NextResponse.json({ mode, result, slug });
+
   } catch (err) {
     const message = err instanceof Error ? err.message : "Recommendation failed";
     return NextResponse.json({ error: message }, { status: 400 });
