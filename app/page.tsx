@@ -2,6 +2,17 @@
 
 import { useState, useEffect } from "react";
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 720);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+  return isMobile;
+}
+
 // ── Design tokens ─────────────────────────────────────────────────────────
 const P = {
   paper: "#efe7d6", paperDark: "#e6dcc7", ink: "#161410", ink2: "#2a2622",
