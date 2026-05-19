@@ -312,7 +312,7 @@ function ErrorScreenSpotify({ url, onBack }: { url: string; onBack: () => void }
 
 // ── Error: tape jam (generic API failure) ─────────────────────────────────
 function ErrorScreenTapeJam({ errorMsg, onBack, onRetry }: { errorMsg: string; onBack: () => void; onRetry: () => void }) {
-  const reqId = Math.random().toString(36).slice(2, 8).toUpperCase();
+  const [reqId] = useState(() => Math.random().toString(36).slice(2, 8).toUpperCase());
   return (
     <div style={{ minHeight: "100vh", background: P.paper, backgroundImage: `radial-gradient(${P.ink}11 1px, transparent 1px) 0 0/3px 3px`, padding: "36px 48px", position: "relative", fontFamily: "'Inter', sans-serif", overflow: "hidden" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
@@ -433,7 +433,7 @@ function LoadingScreen({ book, onBack, mode = "book" }: { book: string; onBack: 
               </div>
             </div>
             <div style={{ marginTop: 16, fontFamily: F.display, fontStyle: "italic", fontWeight: 600, fontSize: 20, color: P.paper, letterSpacing: "-0.01em" }}>
-              {mode === "song" ? "for" : "for"} <em style={{ color: P.yellow }}>{book || (mode === "song" ? "your song" : "your book")}</em>
+              for <em style={{ color: P.yellow }}>{book || (mode === "song" ? "your song" : "your book")}</em>
             </div>
           </div>
         </div>
@@ -813,10 +813,9 @@ export default function Home() {
   const canRunSong = mode === "song_to_books" && (musicInputMode === "spotify" ? !!spotifyUrl.trim() : !!(musicTitle.trim() && musicArtist.trim()));
 
   async function callApi(body: Record<string, unknown>) {
-    const apiSecret = process.env.NEXT_PUBLIC_API_SECRET;
     const res = await fetch("/api/recommendations", {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...(apiSecret ? { Authorization: `Bearer ${apiSecret}` } : {}) },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
     const data = await res.json();

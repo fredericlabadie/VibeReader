@@ -179,7 +179,7 @@ function CallbackInner() {
         <div style={{ fontFamily: F.serif, fontStyle: "italic", fontSize: 18, color: P.ink }}>{stages[status as keyof typeof stages]}</div>
         <div style={{ fontFamily: F.mono, fontSize: 10, color: P.fade, letterSpacing: "0.08em", marginTop: 8 }}>do not close this tab</div>
       </div>
-      <style>{`@keyframes vrSpin { to { transform: rotate(360deg); } } @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,700;1,9..144,400&family=Newsreader:ital,opsz,wght@1,6..72,400&family=DM+Mono:wght@400&display=swap');`}</style>
+      <style>{`@keyframes vrSpin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { MusicListeningDigest, MusicListeningKind } from "@/lib/spotifyMusic";
 
-const MODEL       = "claude-sonnet-4-5";
+const MODEL       = "claude-sonnet-4-6";
 const MODEL_FAST  = "claude-haiku-4-5-20251001"; // factual lookups only
 
 function getClient() {

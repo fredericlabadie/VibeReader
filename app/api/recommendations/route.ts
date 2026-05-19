@@ -46,11 +46,15 @@ export async function POST(req: Request) {
     );
   }
 
+  const MAX_TITLE  = 200;
+  const MAX_NOTES  = 500;
+  const MAX_AUTHOR = 200;
+
   try {
     if (mode === "book_to_songs") {
-      const bookTitle = body.bookTitle?.trim() ?? "";
-      const bookAuthor = body.bookAuthor?.trim() ?? "";
-      const bookNotes = body.bookNotes?.trim();
+      const bookTitle = (body.bookTitle?.trim() ?? "").slice(0, MAX_TITLE);
+      const bookAuthor = (body.bookAuthor?.trim() ?? "").slice(0, MAX_AUTHOR);
+      const bookNotes = body.bookNotes?.trim().slice(0, MAX_NOTES);
 
       if (!bookTitle) {
         return NextResponse.json({ error: "bookTitle is required" }, { status: 400 });
@@ -77,10 +81,10 @@ export async function POST(req: Request) {
     }
 
     /* song_to_books */
-    const url = normalizeSpotifyPaste(body.spotifyUrl ?? "");
-    const title = body.musicTitle?.trim() ?? "";
-    const artist = body.musicArtist?.trim() ?? "";
-    const songNotes = body.musicNotes?.trim();
+    const url = normalizeSpotifyPaste((body.spotifyUrl ?? "").slice(0, 500));
+    const title = (body.musicTitle?.trim() ?? "").slice(0, MAX_TITLE);
+    const artist = (body.musicArtist?.trim() ?? "").slice(0, MAX_AUTHOR);
+    const songNotes = body.musicNotes?.trim().slice(0, MAX_NOTES);
 
     if (url) {
       const resolved = await resolveSpotifyShareUrl(url);

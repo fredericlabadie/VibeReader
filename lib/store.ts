@@ -1,32 +1,33 @@
-// lib/store.ts — Redis Cloud persistence for mixes
-//
-// Env vars — set these in Vercel dashboard → Settings → Environment Variables:
-//   REDIS_URL  (full connection string, e.g. redis://:password@host:port)
-//
-// From your Redis Cloud dashboard:
-//   Host: redis-11965.crce285.us-east-1-4.ec2.cloud.redislabs.com
-//   Port: 11965
-//   Password: find under Security → Default user → "Copy password"
-//
-// Format: redis://:PASSWORD@redis-11965.crce285.us-east-1-4.ec2.cloud.redislabs.com:11965
+// lib/store.ts — Redis persistence for mixes
+// Requires REDIS_URL env var (full connection string: redis://:password@host:port)
 
 import { createClient } from "redis";
 
 let _client: ReturnType<typeof createClient> | null = null;
+let _connecting: Promise<ReturnType<typeof createClient>> | null = null;
 
 async function getClient() {
   const url = process.env.REDIS_URL;
   if (!url) throw new Error("REDIS_URL not configured");
 
-  if (_client && _client.isOpen) return _client;
+  if (_client?.isOpen) return _client;
+  if (_connecting) return _connecting;
 
-  _client = createClient({ url, socket: { connectTimeout: 5000 } });
-  _client.on("error", () => { _client = null; });
-  await Promise.race([
-    _client.connect(),
-    new Promise((_, reject) => setTimeout(() => reject(new Error("Redis connect timeout")), 5000)),
-  ]);
-  return _client;
+  _connecting = (async () => {
+    const client = createClient({ url, socket: { connectTimeout: 5000 } });
+    client.on("error", () => { _client = null; _connecting = null; });
+    await Promise.race([
+      client.connect(),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Redis connect timeout")), 5000)
+      ),
+    ]);
+    _client = client;
+    _connecting = null;
+    return client;
+  })();
+
+  return _connecting;
 }
 
 export type StoredMix = {
