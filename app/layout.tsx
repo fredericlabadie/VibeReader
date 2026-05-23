@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import AmplitudeInit from "@/components/AmplitudeInit";
 import "./globals.css";
 
@@ -43,6 +44,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <Script
+          id="Cookiebot"
+          src="https://consent.cookiebot.com/uc.js"
+          data-cbid="d8d8cb40-e8e6-4ca0-852d-bfb6cd1aac42"
+          data-blockingmode="auto"
+          strategy="beforeInteractive"
+        />
+      </head>
       <body>
         <AmplitudeInit />
         <a href="#main-content" className="skip-link">
