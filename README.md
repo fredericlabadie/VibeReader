@@ -61,9 +61,10 @@ SPOTIFY_CLIENT_SECRET=
 
 **Optional — API protection:**
 ```env
-# Set both to the same value. Generate with: openssl rand -base64 32
+REDIS_URL=
+
+# Server-to-server API protection only. Leave unset for the public web app.
 API_SECRET=
-NEXT_PUBLIC_API_SECRET=
 ```
 
 ---
@@ -99,4 +100,5 @@ NEXT_PUBLIC_API_SECRET=
 }
 ```
 
-If `API_SECRET` is set, requests must include `Authorization: Bearer <secret>`.
+The public web app does not send an `Authorization` header. If `API_SECRET`
+is set, direct browser requests to this endpoint will return `401`.

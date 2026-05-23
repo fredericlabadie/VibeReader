@@ -1,4 +1,5 @@
 import { checkApiSecret } from "@/lib/auth";
+import { checkRecommendationRateLimit, rateLimitHeaders } from "@/lib/rateLimit";
 import {
   disambiguateBookAuthor,
   recommendBooksFromSongDigest,
@@ -21,6 +22,17 @@ type Mode = "book_to_songs" | "song_to_books";
 export async function POST(req: Request) {
   const authError = checkApiSecret(req);
   if (authError) return authError;
+
+  const rate = await checkRecommendationRateLimit(req);
+  if (!rate.allowed) {
+    return NextResponse.json(
+      {
+        error:
+          "Too many recommendations from this connection. Please wait a bit and try again.",
+      },
+      { status: 429, headers: rateLimitHeaders(rate) },
+    );
+  }
 
   let body: {
     mode?: Mode;

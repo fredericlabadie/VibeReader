@@ -2903,12 +2903,13 @@ export default function Home() {
   // Analytics tracking refs
   const requestIdRef = useRef<string>("");
   const requestStartRef = useRef<number>(0);
-  const isFirstMixRef = useRef<boolean>(
-    !localStorage.getItem("vr_mix_submitted"),
-  );
+  const isFirstMixRef = useRef<boolean>(true);
 
   useEffect(() => {
     initUserProperties();
+    try {
+      isFirstMixRef.current = !localStorage.getItem("vr_mix_submitted");
+    } catch {}
   }, []);
 
   // Abandonment tracking — fire if user leaves while a generation is in progress
