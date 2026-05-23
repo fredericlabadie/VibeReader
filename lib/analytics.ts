@@ -6,7 +6,7 @@ const DOMAIN =
   typeof window !== "undefined" ? window.location.hostname : "vibereader";
 
 function track(event: string, props: Record<string, string | undefined>) {
-  amplitude.track(event, { domain: DOMAIN, ...props });
+  amplitude.track(event, { Domain: DOMAIN, ...props });
 }
 
 function setOnce(key: string, value: string) {
@@ -42,7 +42,7 @@ function markActivated(direction: string, sourceType: string) {
   amplitude.identify(identify);
 }
 
-// ── Mix Request Submitted ──────────────────────────────────────────────────────
+// ── mixRequestSubmitted ────────────────────────────────────────────────────────
 
 export function trackMixRequestSubmitted(props: {
   mix_direction: string;
@@ -52,18 +52,18 @@ export function trackMixRequestSubmitted(props: {
   prompt_language?: string;
   is_first_mix: boolean;
 }) {
-  track("Mix Request Submitted", {
-    mix_direction: props.mix_direction,
-    source_type: props.source_type,
-    source_input_length: String(props.source_input_length),
-    request_id: props.request_id,
-    client_surface: "web",
-    prompt_language: props.prompt_language ?? "en",
-    is_first_mix: String(props.is_first_mix),
+  track("mixRequestSubmitted", {
+    MixDirection: props.mix_direction,
+    SourceType: props.source_type,
+    SourceInputLength: String(props.source_input_length),
+    RequestId: props.request_id,
+    ClientSurface: "web",
+    PromptLanguage: props.prompt_language ?? "en",
+    IsFirstMix: String(props.is_first_mix),
   });
 }
 
-// ── Mix Generated ─────────────────────────────────────────────────────────────
+// ── mixGenerated ──────────────────────────────────────────────────────────────
 
 export function trackMixGenerated(props: {
   request_id: string;
@@ -73,14 +73,14 @@ export function trackMixGenerated(props: {
   mix_track_count: number;
   generation_latency_ms: number;
 }) {
-  track("Mix Generated", {
-    request_id: props.request_id,
-    mix_id: props.mix_slug ?? "",
-    mix_slug: props.mix_slug ?? "",
-    mix_direction: props.mix_direction,
-    mix_title: props.mix_title,
-    mix_track_count: String(props.mix_track_count),
-    generation_latency_ms: String(props.generation_latency_ms),
+  track("mixGenerated", {
+    RequestId: props.request_id,
+    MixId: props.mix_slug ?? "",
+    MixSlug: props.mix_slug ?? "",
+    MixDirection: props.mix_direction,
+    MixTitle: props.mix_title,
+    MixTrackCount: String(props.mix_track_count),
+    GenerationLatencyMs: String(props.generation_latency_ms),
   });
   markActivated(
     props.mix_direction,
@@ -88,7 +88,7 @@ export function trackMixGenerated(props: {
   );
 }
 
-// ── Mix Generation Abandoned ──────────────────────────────────────────────────
+// ── mixGenerationAbandoned ────────────────────────────────────────────────────
 
 export function trackMixGenerationAbandoned(props: {
   request_id: string;
@@ -97,17 +97,17 @@ export function trackMixGenerationAbandoned(props: {
   time_since_submit_ms: number;
   abandon_reason: string;
 }) {
-  track("Mix Generation Abandoned", {
-    request_id: props.request_id,
-    mix_direction: props.mix_direction,
-    source_type: props.source_type,
-    time_since_submit_ms: String(props.time_since_submit_ms),
-    abandon_reason: props.abandon_reason,
-    client_surface: "web",
+  track("mixGenerationAbandoned", {
+    RequestId: props.request_id,
+    MixDirection: props.mix_direction,
+    SourceType: props.source_type,
+    TimeSinceSubmitMs: String(props.time_since_submit_ms),
+    AbandonReason: props.abandon_reason,
+    ClientSurface: "web",
   });
 }
 
-// ── Mix Viewed ────────────────────────────────────────────────────────────────
+// ── mixViewed ─────────────────────────────────────────────────────────────────
 
 export function trackMixViewed(props: {
   mix_id: string;
@@ -118,18 +118,18 @@ export function trackMixViewed(props: {
   view_source: string;
   is_first_view: boolean;
 }) {
-  track("Mix Viewed", {
-    mix_id: props.mix_id,
-    mix_slug: props.mix_slug,
-    mix_direction: props.mix_direction,
-    mix_title: props.mix_title,
-    mix_track_count: String(props.mix_track_count),
-    view_source: props.view_source,
-    is_first_view: String(props.is_first_view),
+  track("mixViewed", {
+    MixId: props.mix_id,
+    MixSlug: props.mix_slug,
+    MixDirection: props.mix_direction,
+    MixTitle: props.mix_title,
+    MixTrackCount: String(props.mix_track_count),
+    ViewSource: props.view_source,
+    IsFirstView: String(props.is_first_view),
   });
 }
 
-// ── Archive Viewed ────────────────────────────────────────────────────────────
+// ── archiveViewed ─────────────────────────────────────────────────────────────
 
 export function trackArchiveViewed(props: {
   archive_item_count: number;
@@ -140,12 +140,12 @@ export function trackArchiveViewed(props: {
   identify.setOnce("Has Viewed Archive", "true");
   amplitude.identify(identify);
 
-  track("Archive Viewed", {
-    archive_item_count: String(props.archive_item_count),
-    archive_sort: props.archive_sort,
-    archive_filter_direction: props.archive_filter_direction,
-    client_surface: "web",
-    is_first_archive_view: String(!localStorage.getItem("vr_archive_seen")),
+  track("archiveViewed", {
+    ArchiveItemCount: String(props.archive_item_count),
+    ArchiveSort: props.archive_sort,
+    ArchiveFilterDirection: props.archive_filter_direction,
+    ClientSurface: "web",
+    IsFirstArchiveView: String(!localStorage.getItem("vr_archive_seen")),
   });
 
   try {
@@ -153,7 +153,7 @@ export function trackArchiveViewed(props: {
   } catch {}
 }
 
-// ── Mix Selected ──────────────────────────────────────────────────────────────
+// ── mixSelected ───────────────────────────────────────────────────────────────
 
 export function trackMixSelected(props: {
   mix_id: string;
@@ -164,18 +164,18 @@ export function trackMixSelected(props: {
   archive_sort: string;
   archive_item_count: number;
 }) {
-  track("Mix Selected", {
-    mix_id: props.mix_id,
-    mix_slug: props.mix_slug,
-    mix_direction: props.mix_direction,
-    mix_title: props.mix_title,
-    list_position: String(props.list_position),
-    archive_sort: props.archive_sort,
-    archive_item_count: String(props.archive_item_count),
+  track("mixSelected", {
+    MixId: props.mix_id,
+    MixSlug: props.mix_slug,
+    MixDirection: props.mix_direction,
+    MixTitle: props.mix_title,
+    ListPosition: String(props.list_position),
+    ArchiveSort: props.archive_sort,
+    ArchiveItemCount: String(props.archive_item_count),
   });
 }
 
-// ── External Link Opened ──────────────────────────────────────────────────────
+// ── externalLinkOpened ────────────────────────────────────────────────────────
 
 export function trackExternalLinkOpened(props: {
   external_destination: string;
@@ -190,19 +190,19 @@ export function trackExternalLinkOpened(props: {
   identify.setOnce("Has Opened External Link", "true");
   amplitude.identify(identify);
 
-  track("External Link Opened", {
-    external_destination: props.external_destination,
-    external_link_type: props.external_link_type,
-    external_url_domain: props.external_url_domain,
-    mix_id: props.mix_id,
-    mix_title: props.mix_title,
-    track_number:
+  track("externalLinkOpened", {
+    ExternalDestination: props.external_destination,
+    ExternalLinkType: props.external_link_type,
+    ExternalUrlDomain: props.external_url_domain,
+    MixId: props.mix_id,
+    MixTitle: props.mix_title,
+    TrackNumber:
       props.track_number != null ? String(props.track_number) : undefined,
-    external_query: props.external_query,
+    ExternalQuery: props.external_query,
   });
 }
 
-// ── Track Link Opened ─────────────────────────────────────────────────────────
+// ── trackLinkOpened ───────────────────────────────────────────────────────────
 
 export function trackTrackLinkOpened(props: {
   mix_id: string;
@@ -213,18 +213,18 @@ export function trackTrackLinkOpened(props: {
   external_destination: string;
   external_query: string;
 }) {
-  track("Track Link Opened", {
-    mix_id: props.mix_id,
-    mix_title: props.mix_title,
-    track_number: String(props.track_number),
-    track_title: props.track_title,
-    track_artist: props.track_artist,
-    external_destination: props.external_destination,
-    external_query: props.external_query,
+  track("trackLinkOpened", {
+    MixId: props.mix_id,
+    MixTitle: props.mix_title,
+    TrackNumber: String(props.track_number),
+    TrackTitle: props.track_title,
+    TrackArtist: props.track_artist,
+    ExternalDestination: props.external_destination,
+    ExternalQuery: props.external_query,
   });
 }
 
-// ── Mix Opened In Spotify ─────────────────────────────────────────────────────
+// ── mixOpenedInSpotify ────────────────────────────────────────────────────────
 
 export function trackMixOpenedInSpotify(props: {
   mix_id: string;
@@ -233,17 +233,17 @@ export function trackMixOpenedInSpotify(props: {
   external_query: string;
   view_source: string;
 }) {
-  track("Mix Opened In Spotify", {
-    mix_id: props.mix_id,
-    mix_title: props.mix_title,
-    mix_direction: props.mix_direction,
-    external_destination: "spotify",
-    external_query: props.external_query,
-    view_source: props.view_source,
+  track("mixOpenedInSpotify", {
+    MixId: props.mix_id,
+    MixTitle: props.mix_title,
+    MixDirection: props.mix_direction,
+    ExternalDestination: "spotify",
+    ExternalQuery: props.external_query,
+    ViewSource: props.view_source,
   });
 }
 
-// ── Bookshop Opened ───────────────────────────────────────────────────────────
+// ── bookshopOpened ────────────────────────────────────────────────────────────
 
 export function trackBookshopOpened(props: {
   mix_id: string;
@@ -252,31 +252,31 @@ export function trackBookshopOpened(props: {
   book_author: string;
   external_query: string;
 }) {
-  track("Bookshop Opened", {
-    mix_id: props.mix_id,
-    mix_title: props.mix_title,
-    book_title: props.book_title,
-    book_author: props.book_author,
-    external_destination: "bookshop",
-    external_query: props.external_query,
+  track("bookshopOpened", {
+    MixId: props.mix_id,
+    MixTitle: props.mix_title,
+    BookTitle: props.book_title,
+    BookAuthor: props.book_author,
+    ExternalDestination: "bookshop",
+    ExternalQuery: props.external_query,
   });
 }
 
-// ── About Opened ──────────────────────────────────────────────────────────────
+// ── aboutOpened ───────────────────────────────────────────────────────────────
 
 export function trackAboutOpened(props: {
   external_destination: string;
   external_url_domain: string;
   client_surface: string;
 }) {
-  track("About Opened", {
-    external_destination: props.external_destination,
-    external_url_domain: props.external_url_domain,
-    client_surface: props.client_surface,
+  track("aboutOpened", {
+    ExternalDestination: props.external_destination,
+    ExternalUrlDomain: props.external_url_domain,
+    ClientSurface: props.client_surface,
   });
 }
 
-// ── Error Encountered ─────────────────────────────────────────────────────────
+// ── errorEncountered ──────────────────────────────────────────────────────────
 
 export function trackErrorEncountered(props: {
   error_category: string;
@@ -286,12 +286,12 @@ export function trackErrorEncountered(props: {
   mix_direction?: string;
   http_status_code?: string;
 }) {
-  track("Error Encountered", {
-    error_category: props.error_category,
-    error_message: props.error_message,
-    error_context: props.error_context,
-    request_id: props.request_id,
-    mix_direction: props.mix_direction,
-    http_status_code: props.http_status_code,
+  track("errorEncountered", {
+    ErrorCategory: props.error_category,
+    ErrorMessage: props.error_message,
+    ErrorContext: props.error_context,
+    RequestId: props.request_id,
+    MixDirection: props.mix_direction,
+    HttpStatusCode: props.http_status_code,
   });
 }
