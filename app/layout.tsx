@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import AmplitudeInit from "@/components/AmplitudeInit";
 import "./globals.css";
 
 const SITE_URL = "https://vibereader.fredericlabadie.com";
@@ -10,7 +11,8 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   openGraph: {
     title: "VibeReader — Book ↔ Song",
-    description: "Book → songs or song → books. Recommendations by Claude, not genre tags.",
+    description:
+      "Book → songs or song → books. Recommendations by Claude, not genre tags.",
     url: SITE_URL,
     siteName: "VibeReader",
     type: "website",
@@ -26,18 +28,26 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "VibeReader — Book ↔ Song",
-    description: "Book → songs or song → books. Recommendations by Claude, not genre tags.",
+    description:
+      "Book → songs or song → books. Recommendations by Claude, not genre tags.",
   },
   icons: {
     icon: "/favicon.svg",
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
       <body>
-        <a href="#main-content" className="skip-link">skip to content</a>
+        <AmplitudeInit />
+        <a href="#main-content" className="skip-link">
+          skip to content
+        </a>
         <main id="main-content">{children}</main>
       </body>
     </html>
