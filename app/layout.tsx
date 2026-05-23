@@ -10,6 +10,14 @@ export const metadata: Metadata = {
   description:
     "tell me what you're reading; i'll hand you a list of songs. tell me what you're playing; i'll hand you a stack of novels.",
   metadataBase: new URL(SITE_URL),
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: {
+      index: false,
+      follow: false,
+    },
+  },
   openGraph: {
     title: "VibeReader — Book ↔ Song",
     description:
