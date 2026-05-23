@@ -2,6 +2,13 @@ import * as amplitude from "@amplitude/unified";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
+const DOMAIN =
+  typeof window !== "undefined" ? window.location.hostname : "vibereader";
+
+function track(event: string, props: Record<string, string | undefined>) {
+  amplitude.track(event, { domain: DOMAIN, ...props });
+}
+
 function setOnce(key: string, value: string) {
   const identify = new amplitude.Identify();
   identify.setOnce(key, value);
@@ -45,7 +52,7 @@ export function trackMixRequestSubmitted(props: {
   prompt_language?: string;
   is_first_mix: boolean;
 }) {
-  amplitude.track("Mix Request Submitted", {
+  track("Mix Request Submitted", {
     mix_direction: props.mix_direction,
     source_type: props.source_type,
     source_input_length: String(props.source_input_length),
@@ -66,7 +73,7 @@ export function trackMixGenerated(props: {
   mix_track_count: number;
   generation_latency_ms: number;
 }) {
-  amplitude.track("Mix Generated", {
+  track("Mix Generated", {
     request_id: props.request_id,
     mix_id: props.mix_slug ?? "",
     mix_slug: props.mix_slug ?? "",
@@ -90,7 +97,7 @@ export function trackMixGenerationAbandoned(props: {
   time_since_submit_ms: number;
   abandon_reason: string;
 }) {
-  amplitude.track("Mix Generation Abandoned", {
+  track("Mix Generation Abandoned", {
     request_id: props.request_id,
     mix_direction: props.mix_direction,
     source_type: props.source_type,
@@ -111,7 +118,7 @@ export function trackMixViewed(props: {
   view_source: string;
   is_first_view: boolean;
 }) {
-  amplitude.track("Mix Viewed", {
+  track("Mix Viewed", {
     mix_id: props.mix_id,
     mix_slug: props.mix_slug,
     mix_direction: props.mix_direction,
@@ -133,7 +140,7 @@ export function trackArchiveViewed(props: {
   identify.setOnce("Has Viewed Archive", "true");
   amplitude.identify(identify);
 
-  amplitude.track("Archive Viewed", {
+  track("Archive Viewed", {
     archive_item_count: String(props.archive_item_count),
     archive_sort: props.archive_sort,
     archive_filter_direction: props.archive_filter_direction,
@@ -157,7 +164,7 @@ export function trackMixSelected(props: {
   archive_sort: string;
   archive_item_count: number;
 }) {
-  amplitude.track("Mix Selected", {
+  track("Mix Selected", {
     mix_id: props.mix_id,
     mix_slug: props.mix_slug,
     mix_direction: props.mix_direction,
@@ -183,7 +190,7 @@ export function trackExternalLinkOpened(props: {
   identify.setOnce("Has Opened External Link", "true");
   amplitude.identify(identify);
 
-  amplitude.track("External Link Opened", {
+  track("External Link Opened", {
     external_destination: props.external_destination,
     external_link_type: props.external_link_type,
     external_url_domain: props.external_url_domain,
@@ -206,7 +213,7 @@ export function trackTrackLinkOpened(props: {
   external_destination: string;
   external_query: string;
 }) {
-  amplitude.track("Track Link Opened", {
+  track("Track Link Opened", {
     mix_id: props.mix_id,
     mix_title: props.mix_title,
     track_number: String(props.track_number),
@@ -226,7 +233,7 @@ export function trackMixOpenedInSpotify(props: {
   external_query: string;
   view_source: string;
 }) {
-  amplitude.track("Mix Opened In Spotify", {
+  track("Mix Opened In Spotify", {
     mix_id: props.mix_id,
     mix_title: props.mix_title,
     mix_direction: props.mix_direction,
@@ -245,7 +252,7 @@ export function trackBookshopOpened(props: {
   book_author: string;
   external_query: string;
 }) {
-  amplitude.track("Bookshop Opened", {
+  track("Bookshop Opened", {
     mix_id: props.mix_id,
     mix_title: props.mix_title,
     book_title: props.book_title,
@@ -262,7 +269,7 @@ export function trackAboutOpened(props: {
   external_url_domain: string;
   client_surface: string;
 }) {
-  amplitude.track("About Opened", {
+  track("About Opened", {
     external_destination: props.external_destination,
     external_url_domain: props.external_url_domain,
     client_surface: props.client_surface,
@@ -279,7 +286,7 @@ export function trackErrorEncountered(props: {
   mix_direction?: string;
   http_status_code?: string;
 }) {
-  amplitude.track("Error Encountered", {
+  track("Error Encountered", {
     error_category: props.error_category,
     error_message: props.error_message,
     error_context: props.error_context,
