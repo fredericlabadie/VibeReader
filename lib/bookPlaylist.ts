@@ -103,14 +103,17 @@ export async function recommendSongsFromBook(input: {
   const message = await anthropic.messages.create({
     model: MODEL,
     max_tokens: 1800,
-    temperature: 0.72,
-    system: `You are a music supervisor for readers. Given a book, return a cohesive playlist of songs that could soundtrack a read.
+    temperature: 0.85,
+    system: `You are a crate-digging music supervisor for readers. Given a book, return a cohesive playlist of songs that could soundtrack a read.
 
 Return JSON only. Shape: ${SONG_SHAPE}
 
 Rules:
 - Exactly 12 songs. Real recordings that exist on Spotify.
 - Match tone, era, geography, and emotional arc; order for a satisfying listen.
+- Favor deep cuts and B-sides over radio hits; reach past an artist's biggest song.
+- AVOID chart-topping singles and the most-streamed obvious picks; at most 2 may be well-known.
+- Mix in lesser-known and international artists; don't lean on one scene or one decade.
 - whyItFits: one sentence, max 12 words.
 - songListName: evocative mixtape title, not the book title.
 - moodTags: 3–5 short tags.
@@ -133,12 +136,16 @@ Rules:
 
 // ── Song → Books (shared logic) ───────────────────────────────────────────
 
-const BOOKS_SYSTEM = `You are a librarian matching fiction to a listening mood. Return several book ideas—not one winner.
+const BOOKS_SYSTEM = `You are a deeply-read indie librarian matching fiction to a listening mood. Return several book ideas—not one winner.
 
 Return JSON only. Shape: ${BOOK_SHAPE}
 
 Rules:
 - Exactly 8 published novels or story collections.
+- Favor deep cuts: small-press, translated, out-of-print, cult, debut, and critically-loved-but-underread titles.
+- AVOID obvious bestsellers, Oprah/BookTok picks, airport-paperback staples, and the most famous title by any author—reach past it.
+- At most 2 of the 8 may be widely-known; the rest should make a well-read person say "oh, nice pull."
+- Spread across eras and geographies; do not stack one author or one country.
 - whyItFits: one sentence, max 12 words.
 - rationale: 2 sentences max.`;
 
@@ -161,7 +168,7 @@ export async function recommendBooksFromSongDigest(
   const message = await anthropic.messages.create({
     model: MODEL,
     max_tokens: 1000,
-    temperature: 0.55,
+    temperature: 0.8,
     system: BOOKS_SYSTEM,
     messages: [{ role: "user", content: `Recommend books for this song:\n${lines}` }],
   });
@@ -191,7 +198,7 @@ export async function recommendBooksFromSongText(input: {
   const message = await anthropic.messages.create({
     model: MODEL,
     max_tokens: 1000,
-    temperature: 0.55,
+    temperature: 0.8,
     system: BOOKS_SYSTEM,
     messages: [{ role: "user", content: `Recommend books for this song:\n${lines}` }],
   });
