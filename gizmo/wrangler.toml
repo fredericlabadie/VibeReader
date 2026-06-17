@@ -1,0 +1,28 @@
+name = "moodandvibes"
+main = "worker.ts"
+compatibility_date = "2024-11-01"
+workers_dev = false  # disable *.workers.dev — Gizmos is sole ingress
+
+# Static file passthrough. Binds env.ASSETS so the worker serves the SPA
+# (index.html, _next/*, assets) for all non-/api routes — required for GET /
+# to return 200 and pass the publish health check.
+[assets]
+directory = "."
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+
+[[gizmos_api_keys]]
+binding = "FUEL_IX_API_KEY"
+
+# Spotify creds are secrets — set values in the Gizmos UI, never in this file.
+[[gizmos_api_keys]]
+binding = "SPOTIFY_CLIENT_ID"
+
+[[gizmos_api_keys]]
+binding = "SPOTIFY_CLIENT_SECRET"
+
+[vars]
+FUEL_IX_BASE_URL = "https://api.fuelix.ai/v1"
+FUEL_IX_MODEL = "claude-sonnet-4-6"
